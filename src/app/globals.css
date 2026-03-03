@@ -1,0 +1,199 @@
+@import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Inter:wght@300;400;500;600&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --font-display: 'Rajdhani', sans-serif;
+  --font-body: 'Inter', sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+  --solar-gold: #F5A623;
+  --solar-amber: #E8890C;
+  --solar-dark: #0A0E1A;
+  --solar-panel: #111827;
+  --solar-grid: #1E2A3A;
+  --solar-border: #2A3F5A;
+  --solar-accent: #00D4FF;
+  --solar-green: #22C55E;
+  --solar-red: #EF4444;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  font-family: var(--font-body);
+  background-color: var(--solar-dark);
+  color: #E2E8F0;
+  min-height: 100vh;
+}
+
+.font-display { font-family: var(--font-display); }
+.font-mono { font-family: var(--font-mono); }
+
+/* Grid pattern background */
+.bg-grid {
+  background-image: 
+    linear-gradient(rgba(0, 212, 255, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 212, 255, 0.03) 1px, transparent 1px);
+  background-size: 40px 40px;
+}
+
+/* Solar glow effects */
+.glow-gold {
+  box-shadow: 0 0 20px rgba(245, 166, 35, 0.3), 0 0 60px rgba(245, 166, 35, 0.1);
+}
+
+.glow-cyan {
+  box-shadow: 0 0 20px rgba(0, 212, 255, 0.3);
+}
+
+/* Card styles */
+.card-registro {
+  background: linear-gradient(135deg, rgba(30, 42, 58, 0.9) 0%, rgba(17, 24, 39, 0.95) 100%);
+  border: 1px solid var(--solar-border);
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.card-registro::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--solar-gold), transparent);
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+
+.card-registro:hover::before {
+  opacity: 1;
+}
+
+.card-registro:hover {
+  border-color: rgba(245, 166, 35, 0.4);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4), 0 0 20px rgba(245, 166, 35, 0.1);
+}
+
+/* Input styles */
+.input-solar {
+  background: rgba(10, 14, 26, 0.8);
+  border: 1px solid var(--solar-border);
+  color: #E2E8F0;
+  transition: all 0.2s;
+  font-family: var(--font-body);
+}
+
+.input-solar:focus {
+  outline: none;
+  border-color: var(--solar-gold);
+  box-shadow: 0 0 0 2px rgba(245, 166, 35, 0.15);
+}
+
+.input-solar::placeholder {
+  color: #4A5568;
+}
+
+/* Button styles */
+.btn-primary {
+  background: linear-gradient(135deg, var(--solar-gold), var(--solar-amber));
+  color: #0A0E1A;
+  font-family: var(--font-display);
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  transition: all 0.2s;
+}
+
+.btn-primary:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 20px rgba(245, 166, 35, 0.4);
+}
+
+.btn-primary:active {
+  transform: translateY(0);
+}
+
+.btn-ghost {
+  background: transparent;
+  border: 1px solid var(--solar-border);
+  color: #94A3B8;
+  transition: all 0.2s;
+}
+
+.btn-ghost:hover {
+  border-color: var(--solar-gold);
+  color: var(--solar-gold);
+}
+
+/* AI button */
+.btn-ai {
+  background: linear-gradient(135deg, rgba(0, 212, 255, 0.15), rgba(0, 212, 255, 0.05));
+  border: 1px solid rgba(0, 212, 255, 0.3);
+  color: var(--solar-accent);
+  transition: all 0.2s;
+  font-size: 0.75rem;
+}
+
+.btn-ai:hover {
+  background: linear-gradient(135deg, rgba(0, 212, 255, 0.25), rgba(0, 212, 255, 0.1));
+  box-shadow: 0 0 15px rgba(0, 212, 255, 0.2);
+}
+
+.btn-ai:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Status badge */
+.badge {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.05em;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: var(--solar-dark); }
+::-webkit-scrollbar-thumb { background: var(--solar-border); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--solar-gold); }
+
+/* Animations */
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes pulse-gold {
+  0%, 100% { box-shadow: 0 0 5px rgba(245,166,35,0.3); }
+  50% { box-shadow: 0 0 20px rgba(245,166,35,0.6); }
+}
+
+@keyframes spin-slow {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.animate-fade-up {
+  animation: fadeInUp 0.4s ease forwards;
+}
+
+.animate-pulse-gold {
+  animation: pulse-gold 2s infinite;
+}
+
+.spin-slow {
+  animation: spin-slow 2s linear infinite;
+}
+
+/* Modal overlay */
+.modal-overlay {
+  background: rgba(0, 0, 0, 0.85);
+  backdrop-filter: blur(4px);
+}
+
+select option {
+  background-color: #111827;
+  color: #E2E8F0;
+}
