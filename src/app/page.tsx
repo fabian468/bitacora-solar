@@ -42,11 +42,9 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-grid">
 
-      {/* Header */}
       <header className="sticky top-0 z-40 border-b border-[#1E2A3A] bg-[#0A0E1A]/95 backdrop-blur-md">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between gap-4">
 
-          {/* Logo */}
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center glow-gold">
               <Sun size={20} className="text-amber-400" />
@@ -59,7 +57,6 @@ export default function Home() {
             </div>
           </div>
 
-          {/* Stats */}
           <div className="hidden sm:flex items-center gap-4">
             <div className="flex items-center gap-2 bg-[#111827] border border-[#1E2A3A] rounded-xl px-4 py-2">
               <Activity size={14} className="text-green-400" />
@@ -75,7 +72,6 @@ export default function Home() {
             </div>
           </div>
 
-          {/* Actions */}
           <div className="flex items-center gap-2">
             <button
               onClick={() => setMostrarEscanear(true)}
@@ -97,10 +93,8 @@ export default function Home() {
         </div>
       </header>
 
-      {/* Main */}
       <main className="max-w-6xl mx-auto px-4 sm:px-6 py-8">
 
-        {/* Search y refresh */}
         <div className="flex items-center gap-3 mb-8">
           <div className="relative flex-1 max-w-md">
             <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-600" />
@@ -117,14 +111,12 @@ export default function Home() {
           </button>
         </div>
 
-        {/* Error */}
         {error && (
           <div className="bg-red-500/10 border border-red-500/30 rounded-xl px-5 py-4 mb-6 text-red-400 text-sm font-mono">
             ⚠ {error}
           </div>
         )}
 
-        {/* Loading */}
         {cargando && (
           <div className="flex flex-col items-center justify-center py-24 gap-4">
             <div className="w-12 h-12 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center animate-pulse-gold">
@@ -134,7 +126,6 @@ export default function Home() {
           </div>
         )}
 
-        {/* Empty state */}
         {!cargando && filtrados.length === 0 && (
           <div className="flex flex-col items-center justify-center py-24 gap-4">
             <div className="w-16 h-16 rounded-2xl bg-[#111827] border border-[#1E2A3A] flex items-center justify-center">
@@ -159,16 +150,15 @@ export default function Home() {
           </div>
         )}
 
-        {/* Grid de cards */}
         {!cargando && filtrados.length > 0 && (
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
             {filtrados.map((r, i) => (
               <div key={r.id} style={{ animationDelay: `${i * 0.05}s` }}>
-<<<<<<< HEAD
-                <CardRegistro registro={r} onEliminado={cargar} onActualizado={cargar} />
-=======
-                <CardRegistro registro={r} onEliminado={cargar} />
->>>>>>> d7f0d2320963bed74cad46ff6d32940194dc6201
+                <CardRegistro
+                  registro={r}
+                  onEliminado={cargar}
+                  onActualizado={cargar}
+                />
               </div>
             ))}
           </div>
@@ -176,7 +166,6 @@ export default function Home() {
 
       </main>
 
-      {/* Modal nuevo registro manual */}
       {mostrarForm && (
         <FormularioRegistro
           onClose={() => setMostrarForm(false)}
@@ -184,7 +173,6 @@ export default function Home() {
         />
       )}
 
-      {/* Modal escanear cuaderno */}
       {mostrarEscanear && (
         <EscanearCuaderno
           onClose={() => setMostrarEscanear(false)}
