@@ -1,17 +1,29 @@
 'use client';
 // src/components/CardRegistro.tsx
+<<<<<<< HEAD
 import { RegistroBitacora, PLANTAS } from '@/lib/types';
 import { eliminarRegistro, actualizarRegistro } from '@/lib/bitacora';
 import { Sun, Clock, AlertTriangle, FileText, Trash2, CalendarDays, Pencil, X, Check, Loader2, ClipboardCopy, ClipboardCheck } from 'lucide-react';
+=======
+import { RegistroBitacora } from '@/lib/types';
+import { eliminarRegistro } from '@/lib/bitacora';
+import { Sun, Clock, AlertTriangle, FileText, Trash2, CalendarDays } from 'lucide-react';
+>>>>>>> d7f0d2320963bed74cad46ff6d32940194dc6201
 import { useState } from 'react';
 
 interface Props {
   registro: RegistroBitacora;
   onEliminado: () => void;
+<<<<<<< HEAD
   onActualizado: () => void;
 }
 
 function calcDuracion(r: RegistroBitacora): string | null {
+=======
+}
+
+function duracion(r: RegistroBitacora) {
+>>>>>>> d7f0d2320963bed74cad46ff6d32940194dc6201
   try {
     const ini = new Date(`${r.fechaInicio}T${r.horaInicio}`);
     const fin = new Date(`${r.fechaFin}T${r.horaFin}`);
@@ -23,6 +35,7 @@ function calcDuracion(r: RegistroBitacora): string | null {
   } catch { return null; }
 }
 
+<<<<<<< HEAD
 function formatDate(fecha: string): string {
   const [y, m, d] = fecha.split('-');
   return `${d}/${m}/${y}`;
@@ -80,6 +93,14 @@ export default function CardRegistro({ registro, onEliminado, onActualizado }: P
   };
 
   // ---- EDICIÓN ----
+=======
+export default function CardRegistro({ registro, onEliminado }: Props) {
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [eliminando, setEliminando] = useState(false);
+
+  const dur = duracion(registro);
+
+>>>>>>> d7f0d2320963bed74cad46ff6d32940194dc6201
   const handleDelete = async () => {
     if (!confirmDelete) { setConfirmDelete(true); return; }
     setEliminando(true);
@@ -87,6 +108,7 @@ export default function CardRegistro({ registro, onEliminado, onActualizado }: P
     onEliminado();
   };
 
+<<<<<<< HEAD
   const handleEdit = () => {
     setForm({ ...registro });
     setConfirmDelete(false);
@@ -187,6 +209,16 @@ export default function CardRegistro({ registro, onEliminado, onActualizado }: P
   // ---- MODO VISTA ----
   return (
     <div className="card-registro rounded-2xl p-5 animate-fade-up">
+=======
+  const formatDate = (fecha: string) => {
+    const [y, m, d] = fecha.split('-');
+    return `${d}/${m}/${y}`;
+  };
+
+  return (
+    <div className="card-registro rounded-2xl p-5 animate-fade-up">
+      {/* Top row */}
+>>>>>>> d7f0d2320963bed74cad46ff6d32940194dc6201
       <div className="flex items-start justify-between gap-3 mb-4">
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 rounded-lg bg-amber-500/15 border border-amber-500/25 flex items-center justify-center flex-shrink-0">
@@ -196,6 +228,7 @@ export default function CardRegistro({ registro, onEliminado, onActualizado }: P
             <p className="font-display font-700 text-amber-400 text-sm uppercase tracking-wider leading-none">
               {registro.planta}
             </p>
+<<<<<<< HEAD
             <p className="font-mono text-xs text-slate-500 mt-0.5">{formatDate(registro.fechaInicio)}</p>
           </div>
         </div>
@@ -233,6 +266,28 @@ export default function CardRegistro({ registro, onEliminado, onActualizado }: P
         </div>
       </div>
 
+=======
+            <p className="font-mono text-xs text-slate-500 mt-0.5">
+              {formatDate(registro.fechaInicio)}
+            </p>
+          </div>
+        </div>
+        <button
+          onClick={handleDelete}
+          disabled={eliminando}
+          className={`p-1.5 rounded-lg transition-all text-xs flex items-center gap-1 ${
+            confirmDelete
+              ? 'bg-red-500/20 border border-red-500/40 text-red-400'
+              : 'text-slate-600 hover:text-red-400 hover:bg-red-400/10'
+          }`}
+        >
+          <Trash2 size={13} />
+          {confirmDelete && <span className="font-mono">¿Confirmar?</span>}
+        </button>
+      </div>
+
+      {/* Acontecimiento */}
+>>>>>>> d7f0d2320963bed74cad46ff6d32940194dc6201
       <div className="mb-3">
         <div className="flex items-center gap-1.5 mb-1">
           <AlertTriangle size={12} className="text-cyan-400" />
@@ -241,11 +296,19 @@ export default function CardRegistro({ registro, onEliminado, onActualizado }: P
         <p className="text-white font-500 text-sm leading-snug">{registro.acontecimiento}</p>
       </div>
 
+<<<<<<< HEAD
+=======
+      {/* Causa */}
+>>>>>>> d7f0d2320963bed74cad46ff6d32940194dc6201
       <div className="mb-3 pl-3 border-l-2 border-slate-700">
         <p className="text-xs text-slate-400 mb-0.5 font-mono uppercase tracking-wide">Causa</p>
         <p className="text-slate-300 text-sm">{registro.causa}</p>
       </div>
 
+<<<<<<< HEAD
+=======
+      {/* Detalle */}
+>>>>>>> d7f0d2320963bed74cad46ff6d32940194dc6201
       {registro.detalle && (
         <div className="mb-4">
           <div className="flex items-center gap-1.5 mb-1">
@@ -256,6 +319,10 @@ export default function CardRegistro({ registro, onEliminado, onActualizado }: P
         </div>
       )}
 
+<<<<<<< HEAD
+=======
+      {/* Time row */}
+>>>>>>> d7f0d2320963bed74cad46ff6d32940194dc6201
       <div className="flex items-center gap-4 pt-3 border-t border-[#1E2A3A]">
         <div className="flex items-center gap-1.5">
           <Clock size={11} className="text-slate-600" />
@@ -279,4 +346,8 @@ export default function CardRegistro({ registro, onEliminado, onActualizado }: P
       </div>
     </div>
   );
+<<<<<<< HEAD
 }
+=======
+}
+>>>>>>> d7f0d2320963bed74cad46ff6d32940194dc6201

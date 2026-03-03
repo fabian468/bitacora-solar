@@ -1,5 +1,9 @@
 node_modules
+<<<<<<< HEAD
 .env.local
 
 .next
 dist
+=======
+.env.local
+>>>>>>> d7f0d2320963bed74cad46ff6d32940194dc6201

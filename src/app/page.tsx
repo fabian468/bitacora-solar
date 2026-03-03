@@ -164,7 +164,11 @@ export default function Home() {
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
             {filtrados.map((r, i) => (
               <div key={r.id} style={{ animationDelay: `${i * 0.05}s` }}>
+<<<<<<< HEAD
                 <CardRegistro registro={r} onEliminado={cargar} onActualizado={cargar} />
+=======
+                <CardRegistro registro={r} onEliminado={cargar} />
+>>>>>>> d7f0d2320963bed74cad46ff6d32940194dc6201
               </div>
             ))}
           </div>
