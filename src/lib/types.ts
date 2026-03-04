@@ -18,6 +18,7 @@ export const PLANTAS = [
   'Santa fe',
   'Chillan 1',
   'Chillan 2',
+  'Parques de Matrix',
   'Parque Fotovoltaico 2',
 ];
 
