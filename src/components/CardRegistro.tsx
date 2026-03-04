@@ -2,7 +2,10 @@
 // src/components/CardRegistro.tsx
 import { RegistroBitacora, PLANTAS } from '@/lib/types';
 import { eliminarRegistro, actualizarRegistro } from '@/lib/bitacora';
-import { Sun, Clock, AlertTriangle, FileText, Trash2, CalendarDays, Pencil, X, Check, Loader2, ClipboardCopy, ClipboardCheck } from 'lucide-react';
+import {
+  Sun, Clock, AlertTriangle, FileText, Trash2, CalendarDays,
+  Pencil, X, Check, Loader2, ClipboardCopy, ClipboardCheck
+} from 'lucide-react';
 import { useState } from 'react';
 
 interface Props {
@@ -38,48 +41,36 @@ export default function CardRegistro({ registro, onEliminado, onActualizado }: P
 
   const dur = calcDuracion(editando ? form : registro);
 
-  // ---- COPIAR PARA EXCEL ----
-  // Columnas: Fecha | Planta | Acontecimiento | Causa | Detalle | F.Inicio | H.Inicio | F.Fin | H.Fin | Duración
   const copiarParaExcel = async () => {
     const r = registro;
-    const duracion = calcDuracion(r) ?? '';
-    const fechaRegistro = formatDate(r.fechaInicio);
-
     const columnas = [
-      fechaRegistro,          // 1 - Fecha
-      r.planta,               // 2 - Planta
-      r.acontecimiento,       // 3 - Acontecimiento
-      r.causa,                // 4 - Causa
-      r.detalle,              // 5 - Detalle
-      formatDate(r.fechaInicio), // 6 - Fecha Inicio
-      r.horaInicio,           // 7 - Hora Inicio
-      formatDate(r.fechaFin), // 8 - Fecha Fin
-      r.horaFin,              // 9 - Hora Fin
-      duracion,               // 10 - Duración
-      r.detalle,              // 11 - Detalle (repetido según tu spec)
+      formatDate(r.fechaInicio),
+      r.planta,
+      r.acontecimiento,
+      r.causa,
+      r.detalle,
+      formatDate(r.fechaInicio),
+      r.horaInicio,
+      formatDate(r.fechaFin),
+      r.horaFin,
+      calcDuracion(r) ?? '',
+      r.estado ?? 'pendiente',
     ];
-
-    // Separado por tabulaciones → al pegar en Excel cada valor va a su columna
     const texto = columnas.join('\t');
-
     try {
       await navigator.clipboard.writeText(texto);
-      setCopiado(true);
-      setTimeout(() => setCopiado(false), 2500);
     } catch {
-      // fallback para navegadores sin permisos
       const el = document.createElement('textarea');
       el.value = texto;
       document.body.appendChild(el);
       el.select();
       document.execCommand('copy');
       document.body.removeChild(el);
-      setCopiado(true);
-      setTimeout(() => setCopiado(false), 2500);
     }
+    setCopiado(true);
+    setTimeout(() => setCopiado(false), 2500);
   };
 
-  // ---- EDICIÓN ----
   const handleDelete = async () => {
     if (!confirmDelete) { setConfirmDelete(true); return; }
     setEliminando(true);
@@ -114,7 +105,12 @@ export default function CardRegistro({ registro, onEliminado, onActualizado }: P
   const set = (field: string, value: string) =>
     setForm(prev => ({ ...prev, [field]: value }));
 
-  // ---- MODO EDICIÓN ----
+  const estadoBadge = (estado?: string) =>
+    estado === 'resuelto'
+      ? 'bg-green-500/15 border-green-500/30 text-green-400'
+      : 'bg-amber-500/15 border-amber-500/30 text-amber-400';
+
+  // ── MODO EDICIÓN ──
   if (editando) {
     return (
       <div className="card-registro rounded-2xl p-5" style={{ borderColor: 'rgba(6,182,212,0.4)' }}>
@@ -178,13 +174,32 @@ export default function CardRegistro({ registro, onEliminado, onActualizado }: P
                 className="input-solar w-full rounded-lg px-2 py-1.5 text-xs mt-1" />
             </div>
           </div>
+          <div>
+            <label className="text-xs font-mono text-slate-500 uppercase tracking-wide">Estado</label>
+            <div className="flex gap-2 mt-1">
+              <button type="button" onClick={() => set('estado', 'pendiente')}
+                className={`flex-1 py-1.5 rounded-lg text-xs font-mono border transition-all ${form.estado !== 'resuelto'
+                    ? 'bg-amber-500/20 border-amber-500/50 text-amber-400'
+                    : 'border-slate-700 text-slate-500 hover:border-amber-500/30'
+                  }`}>
+                ⏳ Pendiente
+              </button>
+              <button type="button" onClick={() => set('estado', 'resuelto')}
+                className={`flex-1 py-1.5 rounded-lg text-xs font-mono border transition-all ${form.estado === 'resuelto'
+                    ? 'bg-green-500/20 border-green-500/50 text-green-400'
+                    : 'border-slate-700 text-slate-500 hover:border-green-500/30'
+                  }`}>
+                ✓ Resuelto
+              </button>
+            </div>
+          </div>
           {dur && <p className="font-mono text-xs text-amber-400 text-right">⏱ Duración: {dur}</p>}
         </div>
       </div>
     );
   }
 
-  // ---- MODO VISTA ----
+  // ── MODO VISTA ──
   return (
     <div className="card-registro rounded-2xl p-5 animate-fade-up">
       <div className="flex items-start justify-between gap-3 mb-4">
@@ -199,33 +214,23 @@ export default function CardRegistro({ registro, onEliminado, onActualizado }: P
             <p className="font-mono text-xs text-slate-500 mt-0.5">{formatDate(registro.fechaInicio)}</p>
           </div>
         </div>
-
         <div className="flex items-center gap-1">
-          {/* Copiar para Excel */}
-          <button
-            onClick={copiarParaExcel}
-            title="Copiar para Excel"
+          <button onClick={copiarParaExcel} title="Copiar para Excel"
             className={`p-1.5 rounded-lg transition-all text-xs flex items-center gap-1 ${copiado
-              ? 'bg-green-500/20 border border-green-500/40 text-green-400'
-              : 'text-slate-600 hover:text-green-400 hover:bg-green-400/10'
-              }`}
-          >
+                ? 'bg-green-500/20 border border-green-500/40 text-green-400'
+                : 'text-slate-600 hover:text-green-400 hover:bg-green-400/10'
+              }`}>
             {copiado ? <ClipboardCheck size={13} /> : <ClipboardCopy size={13} />}
             {copiado && <span className="font-mono">¡Copiado!</span>}
           </button>
-
-          {/* Editar */}
-          <button onClick={handleEdit}
-            className="p-1.5 rounded-lg text-slate-600 hover:text-cyan-400 hover:bg-cyan-400/10 transition-all"
-            title="Editar">
+          <button onClick={handleEdit} title="Editar"
+            className="p-1.5 rounded-lg text-slate-600 hover:text-cyan-400 hover:bg-cyan-400/10 transition-all">
             <Pencil size={13} />
           </button>
-
-          {/* Eliminar */}
           <button onClick={handleDelete} disabled={eliminando}
             className={`p-1.5 rounded-lg transition-all text-xs flex items-center gap-1 ${confirmDelete
-              ? 'bg-red-500/20 border border-red-500/40 text-red-400'
-              : 'text-slate-600 hover:text-red-400 hover:bg-red-400/10'
+                ? 'bg-red-500/20 border border-red-500/40 text-red-400'
+                : 'text-slate-600 hover:text-red-400 hover:bg-red-400/10'
               }`}>
             <Trash2 size={13} />
             {confirmDelete && <span className="font-mono">¿Confirmar?</span>}
@@ -234,9 +239,14 @@ export default function CardRegistro({ registro, onEliminado, onActualizado }: P
       </div>
 
       <div className="mb-3">
-        <div className="flex items-center gap-1.5 mb-1">
-          <AlertTriangle size={12} className="text-cyan-400" />
-          <span className="font-mono text-xs text-cyan-400 uppercase tracking-widest">Acontecimiento</span>
+        <div className="flex items-center justify-between mb-1">
+          <div className="flex items-center gap-1.5">
+            <AlertTriangle size={12} className="text-cyan-400" />
+            <span className="font-mono text-xs text-cyan-400 uppercase tracking-widest">Acontecimiento</span>
+          </div>
+          <span className={`badge border px-2 py-0.5 rounded-full text-xs ${estadoBadge(registro.estado)}`}>
+            {registro.estado === 'resuelto' ? '✓ Resuelto' : '⏳ Pendiente'}
+          </span>
         </div>
         <p className="text-white font-500 text-sm leading-snug">{registro.acontecimiento}</p>
       </div>

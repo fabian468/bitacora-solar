@@ -13,8 +13,6 @@ export async function POST(req: NextRequest) {
 
   const prompt = `Analiza esta imagen de un cuaderno de bitácora de una planta fotovoltaica (solar).
 
-  El cuaderno pertenece a una planta fotovoltaica. Vocabulario común: inversor, tracker, string, transformador, limitación de potencia, falla de comunicación...
-
 Tu tarea es extraer TODOS los registros/acontecimientos escritos y estructurarlos en JSON.
 
 Para cada registro encontrado, extrae:

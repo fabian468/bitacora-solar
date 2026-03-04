@@ -35,7 +35,11 @@ export async function POST(req: NextRequest) {
       }),
     });
 
-    if (!response.ok) throw new Error('Error en Groq API');
+    if (!response.ok) {
+      const errBody = await response.text();
+      console.error('Groq API error:', response.status, errBody);
+      throw new Error(`Groq API ${response.status}`);
+    }
 
     const data = await response.json();
     const textoMejorado = data.choices[0]?.message?.content?.trim() || texto;

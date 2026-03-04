@@ -9,15 +9,15 @@ export interface RegistroBitacora {
   horaInicio: string;
   fechaFin: string;
   horaFin: string;
+  estado?: 'resuelto' | 'pendiente';
   createdAt?: number;
 }
 
 export const PLANTAS = [
-  'Planta Solar Norte',
-  'Planta Solar Sur',
-  'Planta Solar Este',
-  'Planta Solar Oeste',
-  'Parque Fotovoltaico 1',
+  'Mutupin',
+  'Santa fe',
+  'Chillan 1',
+  'Chillan 2',
   'Parque Fotovoltaico 2',
 ];
 
