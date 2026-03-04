@@ -1,7 +1,18 @@
 // src/lib/types.ts
+
+export type Cliente = 'Carbon Free' | 'Matrix';
+
+export interface Planta {
+  id?: string;
+  nombre: string;
+  cliente: Cliente;
+  createdAt?: number;
+}
+
 export interface RegistroBitacora {
   id?: string;
   planta: string;
+  cliente: Cliente;
   acontecimiento: string;
   causa: string;
   detalle: string;
@@ -13,22 +24,17 @@ export interface RegistroBitacora {
   createdAt?: number;
 }
 
-export const PLANTAS = [
-  'Mutupin',
-  'Santa fe',
-  'Chillan 1',
-  'Chillan 2',
-  'Parques de Matrix',
-  'Parque Fotovoltaico 2',
-];
+export const CLIENTES: Cliente[] = ['Carbon Free', 'Matrix'];
 
 export const TIPOS_ACONTECIMIENTO = [
   'Falla de inversor',
   'Corte de red eléctrica',
+  'Limitación de potencia',
   'Mantenimiento preventivo',
   'Mantenimiento correctivo',
   'Alarma de temperatura',
   'Falla de comunicación',
+  'Falla tracker',
   'Inspección rutinaria',
   'Limpieza de paneles',
   'Evento climático',

@@ -2,12 +2,13 @@
 // src/components/FormularioRegistro.tsx
 import { useState } from 'react';
 import { crearRegistro } from '@/lib/bitacora';
-import { PLANTAS, RegistroBitacora } from '@/lib/types';
+import { RegistroBitacora, Planta, Cliente, CLIENTES } from '@/lib/types';
 import { X, Sparkles, Loader2, Sun, Clock } from 'lucide-react';
 
 interface Props {
   onClose: () => void;
   onCreado: () => void;
+  plantas: Planta[];
 }
 
 type CampoAI = 'acontecimiento' | 'causa' | 'detalle';
@@ -15,9 +16,24 @@ type CampoAI = 'acontecimiento' | 'causa' | 'detalle';
 const HOY = new Date().toISOString().split('T')[0];
 const AHORA = new Date().toTimeString().slice(0, 5);
 
-export default function FormularioRegistro({ onClose, onCreado }: Props) {
+const CLIENTE_ESTILOS: Record<Cliente, { activo: string; inactivo: string; dot: string }> = {
+  'Carbon Free': {
+    activo: 'bg-green-500/20 border-green-500/50 text-green-400',
+    inactivo: 'border-[#2A3F5A] text-slate-500 hover:border-green-500/30 hover:text-green-400',
+    dot: 'bg-green-400',
+  },
+  'Matrix': {
+    activo: 'bg-cyan-500/20 border-cyan-500/50 text-cyan-400',
+    inactivo: 'border-[#2A3F5A] text-slate-500 hover:border-cyan-500/30 hover:text-cyan-400',
+    dot: 'bg-cyan-400',
+  },
+};
+
+export default function FormularioRegistro({ onClose, onCreado, plantas }: Props) {
+  const [cliente, setCliente] = useState<Cliente>('Carbon Free');
   const [form, setForm] = useState<Omit<RegistroBitacora, 'id' | 'createdAt'>>({
     planta: '',
+    cliente: 'Carbon Free',
     acontecimiento: '',
     causa: '',
     detalle: '',
@@ -25,13 +41,22 @@ export default function FormularioRegistro({ onClose, onCreado }: Props) {
     horaInicio: AHORA,
     fechaFin: HOY,
     horaFin: AHORA,
+    estado: 'pendiente',
   });
   const [cargando, setCargando] = useState(false);
   const [mejorando, setMejorando] = useState<CampoAI | null>(null);
   const [error, setError] = useState('');
 
+  // Plantas filtradas por cliente seleccionado
+  const plantasFiltradas = plantas.filter(p => p.cliente === cliente);
+
   const set = (field: string, value: string) =>
     setForm(prev => ({ ...prev, [field]: value }));
+
+  const cambiarCliente = (c: Cliente) => {
+    setCliente(c);
+    setForm(prev => ({ ...prev, cliente: c, planta: '' }));
+  };
 
   const mejorarConIA = async (campo: CampoAI) => {
     const texto = form[campo];
@@ -54,7 +79,7 @@ export default function FormularioRegistro({ onClose, onCreado }: Props) {
 
   const handleSubmit = async () => {
     if (!form.planta || !form.acontecimiento || !form.causa) {
-      setError('Completa los campos requeridos.');
+      setError('Completa los campos requeridos: planta, acontecimiento y causa.');
       return;
     }
     setCargando(true);
@@ -92,19 +117,54 @@ export default function FormularioRegistro({ onClose, onCreado }: Props) {
         {/* Body */}
         <div className="p-6 space-y-5 max-h-[80vh] overflow-y-auto">
 
-          {/* Planta */}
+          {/* Selector de cliente */}
+          <div className="space-y-2">
+            <label className="text-xs font-display uppercase tracking-widest text-slate-400">
+              Cliente <span className="text-amber-500">*</span>
+            </label>
+            <div className="grid grid-cols-2 gap-3">
+              {CLIENTES.map(c => {
+                const est = CLIENTE_ESTILOS[c];
+                return (
+                  <button
+                    key={c}
+                    type="button"
+                    onClick={() => cambiarCliente(c)}
+                    className={`py-3 px-4 rounded-xl border-2 transition-all flex items-center gap-3 font-display font-600 tracking-wide text-sm ${
+                      cliente === c ? est.activo : est.inactivo
+                    }`}
+                  >
+                    <span className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${cliente === c ? est.dot : 'bg-slate-700'}`} />
+                    {c}
+                    {cliente === c && <span className="ml-auto text-xs">✓</span>}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Planta (filtrada por cliente) */}
           <div className="space-y-1">
             <label className="text-xs font-display uppercase tracking-widest text-slate-400">
-              Planta Fotovoltaica <span className="text-amber-500">*</span>
+              Planta <span className="text-amber-500">*</span>
             </label>
-            <select
-              value={form.planta}
-              onChange={e => set('planta', e.target.value)}
-              className="input-solar w-full rounded-lg px-3 py-2 text-sm"
-            >
-              <option value="">Selecciona la planta...</option>
-              {PLANTAS.map(p => <option key={p} value={p}>{p}</option>)}
-            </select>
+            {plantasFiltradas.length === 0 ? (
+              <div className="input-solar w-full rounded-lg px-3 py-2.5 text-sm text-slate-500 flex items-center gap-2">
+                <span>No hay plantas para {cliente} —</span>
+                <span className="text-amber-400 text-xs">ve a la pestaña PLANTAS para agregar</span>
+              </div>
+            ) : (
+              <select
+                value={form.planta}
+                onChange={e => set('planta', e.target.value)}
+                className="input-solar w-full rounded-lg px-3 py-2 text-sm"
+              >
+                <option value="">Selecciona la planta...</option>
+                {plantasFiltradas.map(p => (
+                  <option key={p.id} value={p.nombre}>{p.nombre}</option>
+                ))}
+              </select>
+            )}
           </div>
 
           {/* Acontecimiento */}
@@ -163,35 +223,19 @@ export default function FormularioRegistro({ onClose, onCreado }: Props) {
               <label className="text-xs font-display uppercase tracking-widest text-slate-400 flex items-center gap-1">
                 <Clock size={11} /> Inicio
               </label>
-              <input
-                type="date"
-                value={form.fechaInicio}
-                onChange={e => set('fechaInicio', e.target.value)}
-                className="input-solar w-full rounded-lg px-3 py-2 text-sm"
-              />
-              <input
-                type="time"
-                value={form.horaInicio}
-                onChange={e => set('horaInicio', e.target.value)}
-                className="input-solar w-full rounded-lg px-3 py-2 text-sm"
-              />
+              <input type="date" value={form.fechaInicio} onChange={e => set('fechaInicio', e.target.value)}
+                className="input-solar w-full rounded-lg px-3 py-2 text-sm" />
+              <input type="time" value={form.horaInicio} onChange={e => set('horaInicio', e.target.value)}
+                className="input-solar w-full rounded-lg px-3 py-2 text-sm" />
             </div>
             <div className="space-y-1">
               <label className="text-xs font-display uppercase tracking-widest text-slate-400 flex items-center gap-1">
                 <Clock size={11} /> Fin
               </label>
-              <input
-                type="date"
-                value={form.fechaFin}
-                onChange={e => set('fechaFin', e.target.value)}
-                className="input-solar w-full rounded-lg px-3 py-2 text-sm"
-              />
-              <input
-                type="time"
-                value={form.horaFin}
-                onChange={e => set('horaFin', e.target.value)}
-                className="input-solar w-full rounded-lg px-3 py-2 text-sm"
-              />
+              <input type="date" value={form.fechaFin} onChange={e => set('fechaFin', e.target.value)}
+                className="input-solar w-full rounded-lg px-3 py-2 text-sm" />
+              <input type="time" value={form.horaFin} onChange={e => set('horaFin', e.target.value)}
+                className="input-solar w-full rounded-lg px-3 py-2 text-sm" />
             </div>
           </div>
 
@@ -218,6 +262,29 @@ export default function FormularioRegistro({ onClose, onCreado }: Props) {
               placeholder="Describe acciones tomadas, observaciones, resultados..."
               className="input-solar w-full rounded-lg px-3 py-2 text-sm resize-none"
             />
+          </div>
+
+          {/* Estado */}
+          <div className="space-y-2">
+            <label className="text-xs font-display uppercase tracking-widest text-slate-400">Estado</label>
+            <div className="flex gap-2">
+              <button type="button" onClick={() => set('estado', 'pendiente')}
+                className={`flex-1 py-2 rounded-xl text-sm font-mono border transition-all ${
+                  form.estado !== 'resuelto'
+                    ? 'bg-amber-500/20 border-amber-500/50 text-amber-400'
+                    : 'border-[#2A3F5A] text-slate-500 hover:border-amber-500/30'
+                }`}>
+                ⏳ Pendiente
+              </button>
+              <button type="button" onClick={() => set('estado', 'resuelto')}
+                className={`flex-1 py-2 rounded-xl text-sm font-mono border transition-all ${
+                  form.estado === 'resuelto'
+                    ? 'bg-green-500/20 border-green-500/50 text-green-400'
+                    : 'border-[#2A3F5A] text-slate-500 hover:border-green-500/30'
+                }`}>
+                ✓ Resuelto
+              </button>
+            </div>
           </div>
 
           {error && (

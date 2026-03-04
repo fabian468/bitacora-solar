@@ -2,16 +2,17 @@
 // src/components/EscanearCuaderno.tsx
 import { useState, useRef, useCallback } from 'react';
 import { crearRegistro } from '@/lib/bitacora';
-import { PLANTAS, RegistroBitacora } from '@/lib/types';
+import { Planta, Cliente, CLIENTES, RegistroBitacora } from '@/lib/types';
 import {
   X, Camera, Upload, Loader2, CheckCircle, AlertCircle,
-  Eye, EyeOff, ChevronDown, ChevronUp, BookOpen, Scan,
-  Check, Trash2, Save, RotateCcw
+  ChevronDown, ChevronUp, BookOpen, Scan,
+  Check, Save, RotateCcw
 } from 'lucide-react';
 
 interface Props {
   onClose: () => void;
   onGuardados: () => void;
+  plantas: Planta[];
 }
 
 type Estado = 'subir' | 'analizando' | 'revisar' | 'guardando' | 'listo';
@@ -23,17 +24,34 @@ interface RegistroRevisado extends Omit<RegistroBitacora, 'id' | 'createdAt'> {
   _guardado?: boolean;
 }
 
-export default function EscanearCuaderno({ onClose, onGuardados }: Props) {
+const CLIENTE_ESTILOS: Record<Cliente, { activo: string; inactivo: string; dot: string }> = {
+  'Carbon Free': {
+    activo: 'bg-green-500/20 border-green-500/50 text-green-400',
+    inactivo: 'border-[#2A3F5A] text-slate-500 hover:border-green-500/30 hover:text-green-400',
+    dot: 'bg-green-400',
+  },
+  'Matrix': {
+    activo: 'bg-cyan-500/20 border-cyan-500/50 text-cyan-400',
+    inactivo: 'border-[#2A3F5A] text-slate-500 hover:border-cyan-500/30 hover:text-cyan-400',
+    dot: 'bg-cyan-400',
+  },
+};
+
+export default function EscanearCuaderno({ onClose, onGuardados, plantas }: Props) {
   const [estado, setEstado] = useState<Estado>('subir');
   const [imagenPreview, setImagenPreview] = useState<string | null>(null);
   const [imagenBase64, setImagenBase64] = useState<string | null>(null);
   const [registros, setRegistros] = useState<RegistroRevisado[]>([]);
   const [nota, setNota] = useState('');
   const [error, setError] = useState('');
-  const [plantaDefault, setPlantaDefault] = useState(PLANTAS[0]);
+  const [clienteDefault, setClienteDefault] = useState<Cliente>('Carbon Free');
   const [contadorGuardados, setContadorGuardados] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
   const camaraRef = useRef<HTMLInputElement>(null);
+
+  // Plantas filtradas por cliente seleccionado
+  const plantasFiltradas = plantas.filter(p => p.cliente === clienteDefault);
+  const plantaDefault = plantasFiltradas[0]?.nombre ?? '';
 
   const procesarImagen = (file: File) => {
     const reader = new FileReader();
@@ -70,10 +88,7 @@ export default function EscanearCuaderno({ onClose, onGuardados }: Props) {
       });
 
       const data = await res.json();
-
-      if (!res.ok || data.error) {
-        throw new Error(data.error || 'Error desconocido');
-      }
+      if (!res.ok || data.error) throw new Error(data.error || 'Error desconocido');
 
       if (!data.registros || data.registros.length === 0) {
         setError('No se encontraron registros en la imagen. Intenta con una foto más clara.');
@@ -84,6 +99,7 @@ export default function EscanearCuaderno({ onClose, onGuardados }: Props) {
       const revisados: RegistroRevisado[] = data.registros.map(
         (r: Omit<RegistroBitacora, 'id' | 'createdAt'>, i: number) => ({
           ...r,
+          cliente: clienteDefault,
           _idx: i,
           _seleccionado: true,
           _expandido: i === 0,
@@ -100,23 +116,14 @@ export default function EscanearCuaderno({ onClose, onGuardados }: Props) {
     }
   };
 
-  const toggleSeleccion = (idx: number) => {
-    setRegistros(prev =>
-      prev.map(r => r._idx === idx ? { ...r, _seleccionado: !r._seleccionado } : r)
-    );
-  };
+  const toggleSeleccion = (idx: number) =>
+    setRegistros(prev => prev.map(r => r._idx === idx ? { ...r, _seleccionado: !r._seleccionado } : r));
 
-  const toggleExpandido = (idx: number) => {
-    setRegistros(prev =>
-      prev.map(r => r._idx === idx ? { ...r, _expandido: !r._expandido } : r)
-    );
-  };
+  const toggleExpandido = (idx: number) =>
+    setRegistros(prev => prev.map(r => r._idx === idx ? { ...r, _expandido: !r._expandido } : r));
 
-  const actualizarCampo = (idx: number, campo: string, valor: string) => {
-    setRegistros(prev =>
-      prev.map(r => r._idx === idx ? { ...r, [campo]: valor } : r)
-    );
-  };
+  const actualizarCampo = (idx: number, campo: string, valor: string) =>
+    setRegistros(prev => prev.map(r => r._idx === idx ? { ...r, [campo]: valor } : r));
 
   const guardarSeleccionados = async () => {
     const seleccionados = registros.filter(r => r._seleccionado && !r._guardado);
@@ -130,9 +137,7 @@ export default function EscanearCuaderno({ onClose, onGuardados }: Props) {
         const { _idx, _seleccionado, _expandido, _guardado, ...datos } = r;
         await crearRegistro(datos);
         guardados++;
-        setRegistros(prev =>
-          prev.map(reg => reg._idx === r._idx ? { ...reg, _guardado: true } : reg)
-        );
+        setRegistros(prev => prev.map(reg => reg._idx === r._idx ? { ...reg, _guardado: true } : reg));
         setContadorGuardados(guardados);
       } catch {
         // continuar con el siguiente
@@ -176,7 +181,7 @@ export default function EscanearCuaderno({ onClose, onGuardados }: Props) {
           </button>
         </div>
 
-        {/* Steps indicator */}
+        {/* Steps */}
         <div className="px-6 py-3 border-b border-[#1A2535] flex items-center gap-2 flex-shrink-0">
           {[
             { key: 'subir', label: '1. Foto' },
@@ -207,21 +212,64 @@ export default function EscanearCuaderno({ onClose, onGuardados }: Props) {
         {/* Content */}
         <div className="flex-1 overflow-y-auto p-6">
 
-          {/* ---- PASO 1: SUBIR IMAGEN ---- */}
+          {/* ── PASO 1: SUBIR ── */}
           {estado === 'subir' && (
             <div className="space-y-5">
+
+              {/* Selector de cliente */}
+              <div className="space-y-2">
+                <label className="text-xs font-display uppercase tracking-widest text-slate-400">
+                  Cliente
+                </label>
+                <div className="grid grid-cols-2 gap-3">
+                  {CLIENTES.map(c => {
+                    const est = CLIENTE_ESTILOS[c];
+                    const count = plantas.filter(p => p.cliente === c).length;
+                    return (
+                      <button
+                        key={c}
+                        type="button"
+                        onClick={() => setClienteDefault(c)}
+                        className={`py-2.5 px-4 rounded-xl border-2 transition-all flex items-center gap-2 text-sm font-display font-600 tracking-wide ${
+                          clienteDefault === c ? est.activo : est.inactivo
+                        }`}
+                      >
+                        <span className={`w-2 h-2 rounded-full flex-shrink-0 ${clienteDefault === c ? est.dot : 'bg-slate-700'}`} />
+                        {c}
+                        <span className="ml-auto text-xs font-mono opacity-60">{count} plantas</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
               {/* Planta por defecto */}
               <div className="space-y-1">
                 <label className="text-xs font-display uppercase tracking-widest text-slate-400">
-                  Planta fotovoltaica (por defecto)
+                  Planta por defecto
                 </label>
-                <select
-                  value={plantaDefault}
-                  onChange={e => setPlantaDefault(e.target.value)}
-                  className="input-solar w-full rounded-lg px-3 py-2 text-sm"
-                >
-                  {PLANTAS.map(p => <option key={p} value={p}>{p}</option>)}
-                </select>
+                {plantasFiltradas.length === 0 ? (
+                  <div className="input-solar w-full rounded-lg px-3 py-2.5 text-sm text-slate-500">
+                    No hay plantas para {clienteDefault} — ve a la pestaña PLANTAS
+                  </div>
+                ) : (
+                  <select
+                    value={plantaDefault}
+                    onChange={e => {
+                      // Solo actualiza la selección visual; el valor real viene de plantaDefault
+                      const nueva = plantasFiltradas.find(p => p.nombre === e.target.value);
+                      if (nueva) {
+                        // Forzar re-render actualizando clienteDefault a sí mismo (hack simple)
+                        setClienteDefault(prev => prev);
+                      }
+                    }}
+                    className="input-solar w-full rounded-lg px-3 py-2 text-sm"
+                  >
+                    {plantasFiltradas.map(p => (
+                      <option key={p.id} value={p.nombre}>{p.nombre}</option>
+                    ))}
+                  </select>
+                )}
                 <p className="text-xs text-slate-600">Se usará si la planta no aparece en el cuaderno</p>
               </div>
 
@@ -234,11 +282,8 @@ export default function EscanearCuaderno({ onClose, onGuardados }: Props) {
               >
                 {imagenPreview ? (
                   <div className="space-y-3">
-                    <img
-                      src={imagenPreview}
-                      alt="Vista previa"
-                      className="max-h-64 mx-auto rounded-xl object-contain"
-                    />
+                    <img src={imagenPreview} alt="Vista previa"
+                      className="max-h-64 mx-auto rounded-xl object-contain" />
                     <p className="text-xs text-slate-400">Imagen cargada ✓ — haz click para cambiar</p>
                   </div>
                 ) : (
@@ -255,7 +300,6 @@ export default function EscanearCuaderno({ onClose, onGuardados }: Props) {
                 )}
               </div>
 
-              {/* Botón cámara móvil */}
               <button
                 onClick={() => camaraRef.current?.click()}
                 className="w-full py-3 rounded-xl border border-[#2A3F5A] text-slate-400 hover:border-cyan-500/40 hover:text-cyan-400 transition-all flex items-center justify-center gap-2 text-sm"
@@ -276,9 +320,7 @@ export default function EscanearCuaderno({ onClose, onGuardados }: Props) {
                 onClick={analizar}
                 disabled={!imagenBase64}
                 className={`w-full py-3 rounded-xl font-display font-700 text-sm flex items-center justify-center gap-2 tracking-wider ${
-                  imagenBase64
-                    ? 'btn-primary'
-                    : 'bg-slate-800 text-slate-600 cursor-not-allowed'
+                  imagenBase64 ? 'btn-primary' : 'bg-slate-800 text-slate-600 cursor-not-allowed'
                 }`}
               >
                 <Scan size={16} /> ANALIZAR CON IA
@@ -286,7 +328,7 @@ export default function EscanearCuaderno({ onClose, onGuardados }: Props) {
             </div>
           )}
 
-          {/* ---- PASO 2: ANALIZANDO ---- */}
+          {/* ── PASO 2: ANALIZANDO ── */}
           {estado === 'analizando' && (
             <div className="flex flex-col items-center justify-center py-16 gap-6">
               <div className="relative">
@@ -302,21 +344,17 @@ export default function EscanearCuaderno({ onClose, onGuardados }: Props) {
                 <p className="text-slate-500 text-sm">La IA está leyendo el cuaderno y extrayendo los registros...</p>
                 <div className="flex items-center justify-center gap-1 mt-4">
                   {[0, 1, 2].map(i => (
-                    <div
-                      key={i}
-                      className="w-2 h-2 rounded-full bg-cyan-400"
-                      style={{ animation: `pulse 1.5s ease-in-out ${i * 0.3}s infinite` }}
-                    />
+                    <div key={i} className="w-2 h-2 rounded-full bg-cyan-400"
+                      style={{ animation: `pulse 1.5s ease-in-out ${i * 0.3}s infinite` }} />
                   ))}
                 </div>
               </div>
             </div>
           )}
 
-          {/* ---- PASO 3: REVISAR ---- */}
+          {/* ── PASO 3: REVISAR ── */}
           {(estado === 'revisar' || estado === 'guardando') && (
             <div className="space-y-4">
-              {/* Summary bar */}
               <div className="flex items-center justify-between bg-[#111827] border border-[#1E2A3A] rounded-xl px-4 py-3">
                 <div className="flex items-center gap-4">
                   <span className="font-mono text-xs text-slate-400">
@@ -332,15 +370,11 @@ export default function EscanearCuaderno({ onClose, onGuardados }: Props) {
                   )}
                 </div>
                 <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => setRegistros(prev => prev.map(r => ({ ...r, _seleccionado: true })))}
-                    className="text-xs text-slate-500 hover:text-slate-300 transition-colors"
-                  >Todos</button>
+                  <button onClick={() => setRegistros(prev => prev.map(r => ({ ...r, _seleccionado: true })))}
+                    className="text-xs text-slate-500 hover:text-slate-300 transition-colors">Todos</button>
                   <span className="text-slate-700">|</span>
-                  <button
-                    onClick={() => setRegistros(prev => prev.map(r => ({ ...r, _seleccionado: false })))}
-                    className="text-xs text-slate-500 hover:text-slate-300 transition-colors"
-                  >Ninguno</button>
+                  <button onClick={() => setRegistros(prev => prev.map(r => ({ ...r, _seleccionado: false })))}
+                    className="text-xs text-slate-500 hover:text-slate-300 transition-colors">Ninguno</button>
                 </div>
               </div>
 
@@ -351,133 +385,123 @@ export default function EscanearCuaderno({ onClose, onGuardados }: Props) {
                 </div>
               )}
 
-              {/* Lista de registros */}
               <div className="space-y-3">
-                {registros.map(r => (
-                  <div
-                    key={r._idx}
-                    className={`rounded-xl border transition-all ${
-                      r._guardado
-                        ? 'border-green-500/30 bg-green-500/5'
-                        : r._seleccionado
-                        ? 'border-cyan-500/30 bg-[#0D1B2A]'
-                        : 'border-[#1E2A3A] bg-[#0A0E1A] opacity-60'
-                    }`}
-                  >
-                    {/* Card header */}
-                    <div className="flex items-center gap-3 px-4 py-3">
-                      {/* Checkbox */}
-                      <button
-                        onClick={() => !r._guardado && toggleSeleccion(r._idx)}
-                        disabled={!!r._guardado}
-                        className={`w-5 h-5 rounded flex items-center justify-center flex-shrink-0 border transition-all ${
-                          r._guardado
-                            ? 'bg-green-500/20 border-green-500/40'
-                            : r._seleccionado
-                            ? 'bg-cyan-500/20 border-cyan-500/40'
-                            : 'border-slate-700'
-                        }`}
-                      >
-                        {r._guardado
-                          ? <Check size={11} className="text-green-400" />
-                          : r._seleccionado
-                          ? <Check size={11} className="text-cyan-400" />
-                          : null
-                        }
-                      </button>
-
-                      {/* Info */}
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <span className="font-mono text-xs text-slate-500">#{r._idx + 1}</span>
-                          {r._guardado && (
-                            <span className="badge bg-green-500/10 border border-green-500/20 text-green-400 px-2 py-0.5 rounded-full">
-                              ✓ Guardado
-                            </span>
-                          )}
+                {registros.map(r => {
+                  // Plantas disponibles para este registro (mismo cliente)
+                  const plantasRegistro = plantas.filter(p => p.cliente === r.cliente);
+                  return (
+                    <div key={r._idx}
+                      className={`rounded-xl border transition-all ${
+                        r._guardado ? 'border-green-500/30 bg-green-500/5' :
+                        r._seleccionado ? 'border-cyan-500/30 bg-[#0D1B2A]' :
+                        'border-[#1E2A3A] bg-[#0A0E1A] opacity-60'
+                      }`}
+                    >
+                      {/* Card header */}
+                      <div className="flex items-center gap-3 px-4 py-3">
+                        <button
+                          onClick={() => !r._guardado && toggleSeleccion(r._idx)}
+                          disabled={!!r._guardado}
+                          className={`w-5 h-5 rounded flex items-center justify-center flex-shrink-0 border transition-all ${
+                            r._guardado ? 'bg-green-500/20 border-green-500/40' :
+                            r._seleccionado ? 'bg-cyan-500/20 border-cyan-500/40' :
+                            'border-slate-700'
+                          }`}
+                        >
+                          {r._guardado ? <Check size={11} className="text-green-400" /> :
+                           r._seleccionado ? <Check size={11} className="text-cyan-400" /> : null}
+                        </button>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className="font-mono text-xs text-slate-500">#{r._idx + 1}</span>
+                            {r._guardado && (
+                              <span className="badge bg-green-500/10 border border-green-500/20 text-green-400 px-2 py-0.5 rounded-full">
+                                ✓ Guardado
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-sm text-white font-500 truncate">{r.acontecimiento || 'Sin título'}</p>
+                          <p className="font-mono text-xs text-slate-500">{r.planta} · {r.fechaInicio} {r.horaInicio}</p>
                         </div>
-                        <p className="text-sm text-white font-500 truncate">{r.acontecimiento || 'Sin título'}</p>
-                        <p className="font-mono text-xs text-slate-500">{r.planta} · {r.fechaInicio} {r.horaInicio}</p>
+                        {!r._guardado && (
+                          <button onClick={() => toggleExpandido(r._idx)} className="btn-ghost p-1.5 rounded-lg">
+                            {r._expandido ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                          </button>
+                        )}
                       </div>
 
-                      {/* Expand */}
-                      {!r._guardado && (
-                        <button
-                          onClick={() => toggleExpandido(r._idx)}
-                          className="btn-ghost p-1.5 rounded-lg"
-                        >
-                          {r._expandido ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-                        </button>
-                      )}
-                    </div>
-
-                    {/* Expanded edit form */}
-                    {r._expandido && !r._guardado && (
-                      <div className="px-4 pb-4 space-y-3 border-t border-[#1E2A3A] pt-3">
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                          <div>
-                            <label className="text-xs font-mono text-slate-500 uppercase">Planta</label>
-                            <select
-                              value={r.planta}
-                              onChange={e => actualizarCampo(r._idx, 'planta', e.target.value)}
-                              className="input-solar w-full rounded-lg px-2 py-1.5 text-xs mt-1"
-                            >
-                              {PLANTAS.map(p => <option key={p} value={p}>{p}</option>)}
-                            </select>
-                          </div>
-                          <div>
-                            <label className="text-xs font-mono text-slate-500 uppercase">Acontecimiento</label>
-                            <input
-                              value={r.acontecimiento}
-                              onChange={e => actualizarCampo(r._idx, 'acontecimiento', e.target.value)}
-                              className="input-solar w-full rounded-lg px-2 py-1.5 text-xs mt-1"
-                            />
-                          </div>
-                        </div>
-                        <div>
-                          <label className="text-xs font-mono text-slate-500 uppercase">Causa</label>
-                          <input
-                            value={r.causa}
-                            onChange={e => actualizarCampo(r._idx, 'causa', e.target.value)}
-                            className="input-solar w-full rounded-lg px-2 py-1.5 text-xs mt-1"
-                          />
-                        </div>
-                        <div>
-                          <label className="text-xs font-mono text-slate-500 uppercase">Detalle</label>
-                          <textarea
-                            rows={2}
-                            value={r.detalle}
-                            onChange={e => actualizarCampo(r._idx, 'detalle', e.target.value)}
-                            className="input-solar w-full rounded-lg px-2 py-1.5 text-xs mt-1 resize-none"
-                          />
-                        </div>
-                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                          {['fechaInicio', 'horaInicio', 'fechaFin', 'horaFin'].map(campo => (
-                            <div key={campo}>
-                              <label className="text-xs font-mono text-slate-500 uppercase">
-                                {campo === 'fechaInicio' ? 'F. Inicio' : campo === 'horaInicio' ? 'H. Inicio' : campo === 'fechaFin' ? 'F. Fin' : 'H. Fin'}
-                              </label>
+                      {/* Formulario expandible */}
+                      {r._expandido && !r._guardado && (
+                        <div className="px-4 pb-4 space-y-3 border-t border-[#1E2A3A] pt-3">
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <div>
+                              <label className="text-xs font-mono text-slate-500 uppercase">Planta</label>
+                              {plantasRegistro.length > 0 ? (
+                                <select
+                                  value={r.planta}
+                                  onChange={e => actualizarCampo(r._idx, 'planta', e.target.value)}
+                                  className="input-solar w-full rounded-lg px-2 py-1.5 text-xs mt-1"
+                                >
+                                  {plantasRegistro.map(p => (
+                                    <option key={p.id} value={p.nombre}>{p.nombre}</option>
+                                  ))}
+                                </select>
+                              ) : (
+                                <input
+                                  value={r.planta}
+                                  onChange={e => actualizarCampo(r._idx, 'planta', e.target.value)}
+                                  className="input-solar w-full rounded-lg px-2 py-1.5 text-xs mt-1"
+                                />
+                              )}
+                            </div>
+                            <div>
+                              <label className="text-xs font-mono text-slate-500 uppercase">Acontecimiento</label>
                               <input
-                                type={campo.includes('hora') ? 'time' : 'date'}
-                                value={r[campo as keyof RegistroRevisado] as string}
-                                onChange={e => actualizarCampo(r._idx, campo, e.target.value)}
+                                value={r.acontecimiento}
+                                onChange={e => actualizarCampo(r._idx, 'acontecimiento', e.target.value)}
                                 className="input-solar w-full rounded-lg px-2 py-1.5 text-xs mt-1"
                               />
                             </div>
-                          ))}
+                          </div>
+                          <div>
+                            <label className="text-xs font-mono text-slate-500 uppercase">Causa</label>
+                            <input
+                              value={r.causa}
+                              onChange={e => actualizarCampo(r._idx, 'causa', e.target.value)}
+                              className="input-solar w-full rounded-lg px-2 py-1.5 text-xs mt-1"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-xs font-mono text-slate-500 uppercase">Detalle</label>
+                            <textarea rows={2} value={r.detalle}
+                              onChange={e => actualizarCampo(r._idx, 'detalle', e.target.value)}
+                              className="input-solar w-full rounded-lg px-2 py-1.5 text-xs mt-1 resize-none" />
+                          </div>
+                          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                            {['fechaInicio', 'horaInicio', 'fechaFin', 'horaFin'].map(campo => (
+                              <div key={campo}>
+                                <label className="text-xs font-mono text-slate-500 uppercase">
+                                  {campo === 'fechaInicio' ? 'F. Inicio' : campo === 'horaInicio' ? 'H. Inicio' : campo === 'fechaFin' ? 'F. Fin' : 'H. Fin'}
+                                </label>
+                                <input
+                                  type={campo.includes('hora') ? 'time' : 'date'}
+                                  value={r[campo as keyof RegistroRevisado] as string}
+                                  onChange={e => actualizarCampo(r._idx, campo, e.target.value)}
+                                  className="input-solar w-full rounded-lg px-2 py-1.5 text-xs mt-1"
+                                />
+                              </div>
+                            ))}
+                          </div>
                         </div>
-                      </div>
-                    )}
-                  </div>
-                ))}
+                      )}
+                    </div>
+                  );
+                })}
               </div>
 
-              {/* Actions */}
               <div className="flex gap-3 pt-2">
-                <button
-                  onClick={reiniciar}
-                  className="btn-ghost px-4 py-2.5 rounded-xl text-sm font-display font-600 uppercase tracking-wider flex items-center gap-2"
-                >
+                <button onClick={reiniciar}
+                  className="btn-ghost px-4 py-2.5 rounded-xl text-sm font-display font-600 uppercase tracking-wider flex items-center gap-2">
                   <RotateCcw size={14} /> Nueva foto
                 </button>
                 <button
@@ -498,7 +522,7 @@ export default function EscanearCuaderno({ onClose, onGuardados }: Props) {
             </div>
           )}
 
-          {/* ---- PASO 4: LISTO ---- */}
+          {/* ── PASO 4: LISTO ── */}
           {estado === 'listo' && (
             <div className="flex flex-col items-center justify-center py-12 gap-6">
               <div className="w-20 h-20 rounded-2xl bg-green-500/10 border border-green-500/30 flex items-center justify-center">
@@ -511,7 +535,8 @@ export default function EscanearCuaderno({ onClose, onGuardados }: Props) {
                 </p>
               </div>
               <div className="flex gap-3">
-                <button onClick={reiniciar} className="btn-ghost px-6 py-2.5 rounded-xl text-sm font-display font-600 uppercase tracking-wider">
+                <button onClick={reiniciar}
+                  className="btn-ghost px-6 py-2.5 rounded-xl text-sm font-display font-600 uppercase tracking-wider">
                   Escanear otra página
                 </button>
                 <button onClick={onClose} className="btn-primary px-6 py-2.5 rounded-xl text-sm">
@@ -520,6 +545,7 @@ export default function EscanearCuaderno({ onClose, onGuardados }: Props) {
               </div>
             </div>
           )}
+
         </div>
       </div>
     </div>

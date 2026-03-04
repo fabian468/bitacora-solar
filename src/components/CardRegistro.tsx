@@ -1,6 +1,6 @@
 'use client';
 // src/components/CardRegistro.tsx
-import { RegistroBitacora, PLANTAS } from '@/lib/types';
+import { RegistroBitacora, Planta } from '@/lib/types';
 import { eliminarRegistro, actualizarRegistro } from '@/lib/bitacora';
 import {
   Sun, Clock, AlertTriangle, FileText, Trash2, CalendarDays,
@@ -10,6 +10,7 @@ import { useState } from 'react';
 
 interface Props {
   registro: RegistroBitacora;
+  plantas: Planta[];
   onEliminado: () => void;
   onActualizado: () => void;
 }
@@ -31,7 +32,7 @@ function formatDate(fecha: string): string {
   return `${d}/${m}/${y}`;
 }
 
-export default function CardRegistro({ registro, onEliminado, onActualizado }: Props) {
+export default function CardRegistro({ registro, plantas, onEliminado, onActualizado }: Props) {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [eliminando, setEliminando] = useState(false);
   const [editando, setEditando] = useState(false);
@@ -40,6 +41,9 @@ export default function CardRegistro({ registro, onEliminado, onActualizado }: P
   const [form, setForm] = useState({ ...registro });
 
   const dur = calcDuracion(editando ? form : registro);
+
+  // Plantas filtradas por el cliente del registro
+  const plantasDisponibles = plantas.filter(p => p.cliente === form.cliente);
 
   const copiarParaExcel = async () => {
     const r = registro;
@@ -129,13 +133,29 @@ export default function CardRegistro({ registro, onEliminado, onActualizado }: P
             </button>
           </div>
         </div>
+
         <div className="space-y-3">
+          {/* Planta desde Firebase */}
           <div>
             <label className="text-xs font-mono text-slate-500 uppercase tracking-wide">Planta</label>
-            <select value={form.planta} onChange={e => set('planta', e.target.value)}
-              className="input-solar w-full rounded-lg px-2 py-1.5 text-xs mt-1">
-              {PLANTAS.map(p => <option key={p} value={p}>{p}</option>)}
-            </select>
+            {plantasDisponibles.length > 0 ? (
+              <select
+                value={form.planta}
+                onChange={e => set('planta', e.target.value)}
+                className="input-solar w-full rounded-lg px-2 py-1.5 text-xs mt-1"
+              >
+                {plantasDisponibles.map(p => (
+                  <option key={p.id} value={p.nombre}>{p.nombre}</option>
+                ))}
+              </select>
+            ) : (
+              <input
+                type="text"
+                value={form.planta}
+                onChange={e => set('planta', e.target.value)}
+                className="input-solar w-full rounded-lg px-2 py-1.5 text-xs mt-1"
+              />
+            )}
           </div>
           <div>
             <label className="text-xs font-mono text-slate-500 uppercase tracking-wide">Acontecimiento</label>
