@@ -197,17 +197,17 @@ export default function CardRegistro({ registro, plantas, onEliminado, onActuali
           <div>
             <label className="text-xs font-mono text-slate-500 uppercase tracking-wide">Estado</label>
             <div className="flex gap-2 mt-1">
-              <button type="button" onClick={() => set('estado', 'pendiente')}
+              <button type="button" onClick={() => { set('estado', 'pendiente'); localStorage.setItem('ultimoEstado', 'pendiente'); }}
                 className={`flex-1 py-1.5 rounded-lg text-xs font-mono border transition-all ${form.estado !== 'resuelto'
-                    ? 'bg-amber-500/20 border-amber-500/50 text-amber-400'
-                    : 'border-slate-700 text-slate-500 hover:border-amber-500/30'
+                  ? 'bg-amber-500/20 border-amber-500/50 text-amber-400'
+                  : 'border-slate-700 text-slate-500 hover:border-amber-500/30'
                   }`}>
                 ⏳ Pendiente
               </button>
-              <button type="button" onClick={() => set('estado', 'resuelto')}
+              <button type="button" onClick={() => { set('estado', 'resuelto'); localStorage.setItem('ultimoEstado', 'resuelto'); }}
                 className={`flex-1 py-1.5 rounded-lg text-xs font-mono border transition-all ${form.estado === 'resuelto'
-                    ? 'bg-green-500/20 border-green-500/50 text-green-400'
-                    : 'border-slate-700 text-slate-500 hover:border-green-500/30'
+                  ? 'bg-green-500/20 border-green-500/50 text-green-400'
+                  : 'border-slate-700 text-slate-500 hover:border-green-500/30'
                   }`}>
                 ✓ Resuelto
               </button>
@@ -237,8 +237,8 @@ export default function CardRegistro({ registro, plantas, onEliminado, onActuali
         <div className="flex items-center gap-1">
           <button onClick={copiarParaExcel} title="Copiar para Excel"
             className={`p-1.5 rounded-lg transition-all text-xs flex items-center gap-1 ${copiado
-                ? 'bg-green-500/20 border border-green-500/40 text-green-400'
-                : 'text-slate-600 hover:text-green-400 hover:bg-green-400/10'
+              ? 'bg-green-500/20 border border-green-500/40 text-green-400'
+              : 'text-slate-600 hover:text-green-400 hover:bg-green-400/10'
               }`}>
             {copiado ? <ClipboardCheck size={13} /> : <ClipboardCopy size={13} />}
             {copiado && <span className="font-mono">¡Copiado!</span>}
@@ -249,8 +249,8 @@ export default function CardRegistro({ registro, plantas, onEliminado, onActuali
           </button>
           <button onClick={handleDelete} disabled={eliminando}
             className={`p-1.5 rounded-lg transition-all text-xs flex items-center gap-1 ${confirmDelete
-                ? 'bg-red-500/20 border border-red-500/40 text-red-400'
-                : 'text-slate-600 hover:text-red-400 hover:bg-red-400/10'
+              ? 'bg-red-500/20 border border-red-500/40 text-red-400'
+              : 'text-slate-600 hover:text-red-400 hover:bg-red-400/10'
               }`}>
             <Trash2 size={13} />
             {confirmDelete && <span className="font-mono">¿Confirmar?</span>}
