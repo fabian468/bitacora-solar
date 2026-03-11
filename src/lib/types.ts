@@ -26,6 +26,16 @@ export interface RegistroBitacora {
 
 export const CLIENTES: Cliente[] = ['Carbon Free', 'Matrix'];
 
+export interface Despacho {
+  id?: string;
+  planta: string;
+  cliente: Cliente;
+  numero: string;
+  fecha: string;
+  descripcion?: string;
+  createdAt?: number;
+}
+
 export const TIPOS_ACONTECIMIENTO = [
   'Falla de inversor',
   'Corte de red eléctrica',

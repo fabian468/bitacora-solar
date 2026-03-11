@@ -42,8 +42,11 @@ export default function CardRegistro({ registro, plantas, onEliminado, onActuali
 
   const dur = calcDuracion(editando ? form : registro);
 
-  // Plantas filtradas por el cliente del registro
-  const plantasDisponibles = plantas.filter(p => p.cliente === form.cliente);
+  // Plantas filtradas por cliente del registro — vienen de Firebase via prop
+  const plantasDisponibles = (plantas ?? []).filter(p => p.cliente === form.cliente);
+
+  const set = (field: string, value: string) =>
+    setForm(prev => ({ ...prev, [field]: value }));
 
   const copiarParaExcel = async () => {
     const r = registro;
@@ -101,13 +104,11 @@ export default function CardRegistro({ registro, plantas, onEliminado, onActuali
       onActualizado();
       setEditando(false);
     } catch {
+      // silencioso
     } finally {
       setGuardando(false);
     }
   };
-
-  const set = (field: string, value: string) =>
-    setForm(prev => ({ ...prev, [field]: value }));
 
   const estadoBadge = (estado?: string) =>
     estado === 'resuelto'
@@ -126,8 +127,11 @@ export default function CardRegistro({ registro, plantas, onEliminado, onActuali
             <button onClick={handleCancel} className="btn-ghost p-1.5 rounded-lg">
               <X size={14} />
             </button>
-            <button onClick={handleSave} disabled={guardando}
-              className="btn-primary px-3 py-1.5 rounded-lg text-xs flex items-center gap-1.5">
+            <button
+              onClick={handleSave}
+              disabled={guardando}
+              className="btn-primary px-3 py-1.5 rounded-lg text-xs flex items-center gap-1.5"
+            >
               {guardando ? <Loader2 size={12} className="spin-slow" /> : <Check size={12} />}
               {guardando ? 'Guardando...' : 'Guardar'}
             </button>
@@ -135,7 +139,6 @@ export default function CardRegistro({ registro, plantas, onEliminado, onActuali
         </div>
 
         <div className="space-y-3">
-          {/* Planta desde Firebase */}
           <div>
             <label className="text-xs font-mono text-slate-500 uppercase tracking-wide">Planta</label>
             {plantasDisponibles.length > 0 ? (
@@ -157,62 +160,77 @@ export default function CardRegistro({ registro, plantas, onEliminado, onActuali
               />
             )}
           </div>
+
           <div>
             <label className="text-xs font-mono text-slate-500 uppercase tracking-wide">Acontecimiento</label>
-            <textarea rows={2} value={form.acontecimiento} onChange={e => set('acontecimiento', e.target.value)}
+            <textarea rows={2} value={form.acontecimiento}
+              onChange={e => set('acontecimiento', e.target.value)}
               className="input-solar w-full rounded-lg px-2 py-1.5 text-xs mt-1 resize-none" />
           </div>
+
           <div>
             <label className="text-xs font-mono text-slate-500 uppercase tracking-wide">Causa</label>
-            <textarea rows={2} value={form.causa} onChange={e => set('causa', e.target.value)}
+            <textarea rows={2} value={form.causa}
+              onChange={e => set('causa', e.target.value)}
               className="input-solar w-full rounded-lg px-2 py-1.5 text-xs mt-1 resize-none" />
           </div>
+
           <div>
             <label className="text-xs font-mono text-slate-500 uppercase tracking-wide">Detalle</label>
-            <textarea rows={3} value={form.detalle} onChange={e => set('detalle', e.target.value)}
+            <textarea rows={3} value={form.detalle}
+              onChange={e => set('detalle', e.target.value)}
               className="input-solar w-full rounded-lg px-2 py-1.5 text-xs mt-1 resize-none" />
           </div>
+
           <div className="grid grid-cols-2 gap-2">
             <div>
               <label className="text-xs font-mono text-slate-500 uppercase tracking-wide">F. Inicio</label>
-              <input type="date" value={form.fechaInicio} onChange={e => set('fechaInicio', e.target.value)}
+              <input type="date" value={form.fechaInicio}
+                onChange={e => set('fechaInicio', e.target.value)}
                 className="input-solar w-full rounded-lg px-2 py-1.5 text-xs mt-1" />
             </div>
             <div>
               <label className="text-xs font-mono text-slate-500 uppercase tracking-wide">H. Inicio</label>
-              <input type="time" value={form.horaInicio} onChange={e => set('horaInicio', e.target.value)}
+              <input type="time" value={form.horaInicio}
+                onChange={e => set('horaInicio', e.target.value)}
                 className="input-solar w-full rounded-lg px-2 py-1.5 text-xs mt-1" />
             </div>
             <div>
               <label className="text-xs font-mono text-slate-500 uppercase tracking-wide">F. Fin</label>
-              <input type="date" value={form.fechaFin} onChange={e => set('fechaFin', e.target.value)}
+              <input type="date" value={form.fechaFin}
+                onChange={e => set('fechaFin', e.target.value)}
                 className="input-solar w-full rounded-lg px-2 py-1.5 text-xs mt-1" />
             </div>
             <div>
               <label className="text-xs font-mono text-slate-500 uppercase tracking-wide">H. Fin</label>
-              <input type="time" value={form.horaFin} onChange={e => set('horaFin', e.target.value)}
+              <input type="time" value={form.horaFin}
+                onChange={e => set('horaFin', e.target.value)}
                 className="input-solar w-full rounded-lg px-2 py-1.5 text-xs mt-1" />
             </div>
           </div>
+
           <div>
             <label className="text-xs font-mono text-slate-500 uppercase tracking-wide">Estado</label>
             <div className="flex gap-2 mt-1">
-              <button type="button" onClick={() => { set('estado', 'pendiente'); localStorage.setItem('ultimoEstado', 'pendiente'); }}
-                className={`flex-1 py-1.5 rounded-lg text-xs font-mono border transition-all ${form.estado !== 'resuelto'
-                  ? 'bg-amber-500/20 border-amber-500/50 text-amber-400'
-                  : 'border-slate-700 text-slate-500 hover:border-amber-500/30'
-                  }`}>
+              <button type="button" onClick={() => set('estado', 'pendiente')}
+                className={`flex-1 py-1.5 rounded-lg text-xs font-mono border transition-all ${
+                  form.estado !== 'resuelto'
+                    ? 'bg-amber-500/20 border-amber-500/50 text-amber-400'
+                    : 'border-slate-700 text-slate-500 hover:border-amber-500/30'
+                }`}>
                 ⏳ Pendiente
               </button>
-              <button type="button" onClick={() => { set('estado', 'resuelto'); localStorage.setItem('ultimoEstado', 'resuelto'); }}
-                className={`flex-1 py-1.5 rounded-lg text-xs font-mono border transition-all ${form.estado === 'resuelto'
-                  ? 'bg-green-500/20 border-green-500/50 text-green-400'
-                  : 'border-slate-700 text-slate-500 hover:border-green-500/30'
-                  }`}>
+              <button type="button" onClick={() => set('estado', 'resuelto')}
+                className={`flex-1 py-1.5 rounded-lg text-xs font-mono border transition-all ${
+                  form.estado === 'resuelto'
+                    ? 'bg-green-500/20 border-green-500/50 text-green-400'
+                    : 'border-slate-700 text-slate-500 hover:border-green-500/30'
+                }`}>
                 ✓ Resuelto
               </button>
             </div>
           </div>
+
           {dur && <p className="font-mono text-xs text-amber-400 text-right">⏱ Duración: {dur}</p>}
         </div>
       </div>
@@ -234,24 +252,29 @@ export default function CardRegistro({ registro, plantas, onEliminado, onActuali
             <p className="font-mono text-xs text-slate-500 mt-0.5">{formatDate(registro.fechaInicio)}</p>
           </div>
         </div>
+
         <div className="flex items-center gap-1">
           <button onClick={copiarParaExcel} title="Copiar para Excel"
-            className={`p-1.5 rounded-lg transition-all text-xs flex items-center gap-1 ${copiado
-              ? 'bg-green-500/20 border border-green-500/40 text-green-400'
-              : 'text-slate-600 hover:text-green-400 hover:bg-green-400/10'
-              }`}>
+            className={`p-1.5 rounded-lg transition-all text-xs flex items-center gap-1 ${
+              copiado
+                ? 'bg-green-500/20 border border-green-500/40 text-green-400'
+                : 'text-slate-600 hover:text-green-400 hover:bg-green-400/10'
+            }`}>
             {copiado ? <ClipboardCheck size={13} /> : <ClipboardCopy size={13} />}
             {copiado && <span className="font-mono">¡Copiado!</span>}
           </button>
+
           <button onClick={handleEdit} title="Editar"
             className="p-1.5 rounded-lg text-slate-600 hover:text-cyan-400 hover:bg-cyan-400/10 transition-all">
             <Pencil size={13} />
           </button>
+
           <button onClick={handleDelete} disabled={eliminando}
-            className={`p-1.5 rounded-lg transition-all text-xs flex items-center gap-1 ${confirmDelete
-              ? 'bg-red-500/20 border border-red-500/40 text-red-400'
-              : 'text-slate-600 hover:text-red-400 hover:bg-red-400/10'
-              }`}>
+            className={`p-1.5 rounded-lg transition-all text-xs flex items-center gap-1 ${
+              confirmDelete
+                ? 'bg-red-500/20 border border-red-500/40 text-red-400'
+                : 'text-slate-600 hover:text-red-400 hover:bg-red-400/10'
+            }`}>
             <Trash2 size={13} />
             {confirmDelete && <span className="font-mono">¿Confirmar?</span>}
           </button>
@@ -290,13 +313,19 @@ export default function CardRegistro({ registro, plantas, onEliminado, onActuali
         <div className="flex items-center gap-1.5">
           <Clock size={11} className="text-slate-600" />
           <span className="font-mono text-xs text-slate-500">
-            Inicio: <span className="text-slate-300">{registro.fechaInicio !== registro.fechaFin ? `${formatDate(registro.fechaInicio)} ` : ''}{registro.horaInicio}</span>
+            Inicio: <span className="text-slate-300">
+              {registro.fechaInicio !== registro.fechaFin ? `${formatDate(registro.fechaInicio)} ` : ''}
+              {registro.horaInicio}
+            </span>
           </span>
         </div>
         <div className="flex items-center gap-1.5">
           <CalendarDays size={11} className="text-slate-600" />
           <span className="font-mono text-xs text-slate-500">
-            Fin: <span className="text-slate-300">{registro.fechaInicio !== registro.fechaFin ? `${formatDate(registro.fechaFin)} ` : ''}{registro.horaFin}</span>
+            Fin: <span className="text-slate-300">
+              {registro.fechaInicio !== registro.fechaFin ? `${formatDate(registro.fechaFin)} ` : ''}
+              {registro.horaFin}
+            </span>
           </span>
         </div>
         {dur && (

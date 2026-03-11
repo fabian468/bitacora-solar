@@ -535,11 +535,20 @@ video {
 .left-3{
   left: 0.75rem;
 }
+.right-0{
+  right: 0px;
+}
+.right-3{
+  right: 0.75rem;
+}
 .top-0{
   top: 0px;
 }
 .top-1\/2{
   top: 50%;
+}
+.top-3{
+  top: 0.75rem;
 }
 .z-40{
   z-index: 40;
@@ -572,6 +581,9 @@ video {
 .mb-6{
   margin-bottom: 1.5rem;
 }
+.ml-2{
+  margin-left: 0.5rem;
+}
 .ml-auto{
   margin-left: auto;
 }
@@ -590,14 +602,14 @@ video {
 .mt-6{
   margin-top: 1.5rem;
 }
-.block{
-  display: block;
-}
 .inline{
   display: inline;
 }
 .flex{
   display: flex;
+}
+.inline-flex{
+  display: inline-flex;
 }
 .grid{
   display: grid;
@@ -818,6 +830,9 @@ video {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.break-all{
+  word-break: break-all;
+}
 .rounded{
   border-radius: 0.25rem;
 }
@@ -934,6 +949,9 @@ video {
 .border-transparent{
   border-color: transparent;
 }
+.border-slate-600\/40{
+  border-color: rgb(71 85 105 / 0.4);
+}
 .bg-\[\#0A0E1A\]{
   --tw-bg-opacity: 1;
   background-color: rgb(10 14 26 / var(--tw-bg-opacity, 1));
@@ -1024,6 +1042,9 @@ video {
 .bg-slate-800{
   --tw-bg-opacity: 1;
   background-color: rgb(30 41 59 / var(--tw-bg-opacity, 1));
+}
+.bg-slate-700\/40{
+  background-color: rgb(51 65 85 / 0.4);
 }
 .object-contain{
   -o-object-fit: contain;
@@ -1245,6 +1266,9 @@ video {
 .text-white{
   --tw-text-opacity: 1;
   color: rgb(255 255 255 / var(--tw-text-opacity, 1));
+}
+.text-amber-400\/70{
+  color: rgb(251 191 36 / 0.7);
 }
 .opacity-0{
   opacity: 0;
@@ -1507,10 +1531,6 @@ select option {
   border-color: rgb(71 85 105 / var(--tw-border-opacity, 1));
 }
 
-.hover\:bg-red-400\/10:hover{
-  background-color: rgb(248 113 113 / 0.1);
-}
-
 .hover\:bg-cyan-400\/10:hover{
   background-color: rgb(34 211 238 / 0.1);
 }
@@ -1519,9 +1539,22 @@ select option {
   background-color: rgb(74 222 128 / 0.1);
 }
 
+.hover\:bg-red-400\/10:hover{
+  background-color: rgb(248 113 113 / 0.1);
+}
+
+.hover\:bg-amber-400\/10:hover{
+  background-color: rgb(251 191 36 / 0.1);
+}
+
 .hover\:text-amber-400:hover{
   --tw-text-opacity: 1;
   color: rgb(251 191 36 / var(--tw-text-opacity, 1));
+}
+
+.hover\:text-cyan-300:hover{
+  --tw-text-opacity: 1;
+  color: rgb(103 232 249 / var(--tw-text-opacity, 1));
 }
 
 .hover\:text-cyan-400:hover{
@@ -1547,10 +1580,6 @@ select option {
 .hover\:text-slate-300:hover{
   --tw-text-opacity: 1;
   color: rgb(203 213 225 / var(--tw-text-opacity, 1));
-}
-
-.hover\:opacity-90:hover{
-  opacity: 0.9;
 }
 
 .group:hover .group-hover\:opacity-100{

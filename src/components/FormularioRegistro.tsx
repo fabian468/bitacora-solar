@@ -30,18 +30,10 @@ const CLIENTE_ESTILOS: Record<Cliente, { activo: string; inactivo: string; dot: 
 };
 
 export default function FormularioRegistro({ onClose, onCreado, plantas }: Props) {
-  const ultimoCliente = (typeof window !== 'undefined'
-    ? localStorage.getItem('ultimoCliente')
-    : null) as Cliente | null;
-
-  const ultimoEstado = (typeof window !== 'undefined'
-    ? localStorage.getItem('ultimoEstado')
-    : null) as 'pendiente' | 'resuelto' | null;
-
-  const [cliente, setCliente] = useState<Cliente>(ultimoCliente ?? 'Carbon Free');
+  const [cliente, setCliente] = useState<Cliente>('Carbon Free');
   const [form, setForm] = useState<Omit<RegistroBitacora, 'id' | 'createdAt'>>({
     planta: '',
-    cliente: ultimoCliente ?? 'Carbon Free',
+    cliente: 'Carbon Free',
     acontecimiento: '',
     causa: '',
     detalle: '',
@@ -49,7 +41,7 @@ export default function FormularioRegistro({ onClose, onCreado, plantas }: Props
     horaInicio: AHORA,
     fechaFin: HOY,
     horaFin: AHORA,
-    estado: ultimoEstado ?? 'pendiente',
+    estado: 'pendiente',
   });
   const [cargando, setCargando] = useState(false);
   const [mejorando, setMejorando] = useState<CampoAI | null>(null);
@@ -64,7 +56,6 @@ export default function FormularioRegistro({ onClose, onCreado, plantas }: Props
   const cambiarCliente = (c: Cliente) => {
     setCliente(c);
     setForm(prev => ({ ...prev, cliente: c, planta: '' }));
-    localStorage.setItem('ultimoCliente', c);
   };
 
   const mejorarConIA = async (campo: CampoAI) => {
@@ -139,8 +130,9 @@ export default function FormularioRegistro({ onClose, onCreado, plantas }: Props
                     key={c}
                     type="button"
                     onClick={() => cambiarCliente(c)}
-                    className={`py-3 px-4 rounded-xl border-2 transition-all flex items-center gap-3 font-display font-600 tracking-wide text-sm ${cliente === c ? est.activo : est.inactivo
-                      }`}
+                    className={`py-3 px-4 rounded-xl border-2 transition-all flex items-center gap-3 font-display font-600 tracking-wide text-sm ${
+                      cliente === c ? est.activo : est.inactivo
+                    }`}
                   >
                     <span className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${cliente === c ? est.dot : 'bg-slate-700'}`} />
                     {c}
@@ -277,17 +269,19 @@ export default function FormularioRegistro({ onClose, onCreado, plantas }: Props
             <label className="text-xs font-display uppercase tracking-widest text-slate-400">Estado</label>
             <div className="flex gap-2">
               <button type="button" onClick={() => set('estado', 'pendiente')}
-                className={`flex-1 py-2 rounded-xl text-sm font-mono border transition-all ${form.estado !== 'resuelto'
-                  ? 'bg-amber-500/20 border-amber-500/50 text-amber-400'
-                  : 'border-[#2A3F5A] text-slate-500 hover:border-amber-500/30'
-                  }`}>
+                className={`flex-1 py-2 rounded-xl text-sm font-mono border transition-all ${
+                  form.estado !== 'resuelto'
+                    ? 'bg-amber-500/20 border-amber-500/50 text-amber-400'
+                    : 'border-[#2A3F5A] text-slate-500 hover:border-amber-500/30'
+                }`}>
                 ⏳ Pendiente
               </button>
               <button type="button" onClick={() => set('estado', 'resuelto')}
-                className={`flex-1 py-2 rounded-xl text-sm font-mono border transition-all ${form.estado === 'resuelto'
-                  ? 'bg-green-500/20 border-green-500/50 text-green-400'
-                  : 'border-[#2A3F5A] text-slate-500 hover:border-green-500/30'
-                  }`}>
+                className={`flex-1 py-2 rounded-xl text-sm font-mono border transition-all ${
+                  form.estado === 'resuelto'
+                    ? 'bg-green-500/20 border-green-500/50 text-green-400'
+                    : 'border-[#2A3F5A] text-slate-500 hover:border-green-500/30'
+                }`}>
                 ✓ Resuelto
               </button>
             </div>
