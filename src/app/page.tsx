@@ -144,19 +144,18 @@ export default function Home() {
           <div className="flex items-center gap-0">
             {[
               { key: 'bitacora', label: 'BITÁCORA', icon: <LayoutDashboard size={14} /> },
-              { key: 'informe',  label: 'INFORMES',  icon: <FileText size={14} /> },
-              { key: 'plantas',    label: 'PLANTAS',    icon: <Building2 size={14} /> },
+              { key: 'informe', label: 'INFORMES', icon: <FileText size={14} /> },
+              { key: 'plantas', label: 'PLANTAS', icon: <Building2 size={14} /> },
               { key: 'despachos', label: 'DESPACHOS', icon: <Truck size={14} /> },
-              { key: 'alertas',   label: 'ALERTAS',   icon: <Bell size={14} /> },
+              { key: 'alertas', label: 'ALERTAS', icon: <Bell size={14} /> },
             ].map(tab => (
               <button
                 key={tab.key}
                 onClick={() => setVista(tab.key as Vista)}
-                className={`flex items-center gap-2 px-5 py-2.5 text-xs sm:text-sm font-display font-600 tracking-wider border-b-2 transition-all ${
-                  vista === tab.key
+                className={`flex items-center gap-2 px-5 py-2.5 text-xs sm:text-sm font-display font-600 tracking-wider border-b-2 transition-all ${vista === tab.key
                     ? 'border-amber-400 text-amber-400'
                     : 'border-transparent text-slate-500 hover:text-slate-300'
-                }`}
+                  }`}
               >
                 {tab.icon}
                 {tab.label}
@@ -177,11 +176,10 @@ export default function Home() {
             <div className="flex flex-wrap items-center gap-2 mb-5">
               <button
                 onClick={() => setClienteFiltro('todos')}
-                className={`px-4 py-2 rounded-xl text-xs font-mono border transition-all ${
-                  clienteFiltro === 'todos'
+                className={`px-4 py-2 rounded-xl text-xs font-mono border transition-all ${clienteFiltro === 'todos'
                     ? 'bg-amber-500/15 border-amber-500/40 text-amber-400'
                     : 'border-[#1E2A3A] text-slate-500 hover:border-amber-500/30 hover:text-amber-400'
-                }`}
+                  }`}
               >
                 Todos ({registros.length})
               </button>
@@ -192,9 +190,8 @@ export default function Home() {
                   <button
                     key={c}
                     onClick={() => setClienteFiltro(c)}
-                    className={`px-4 py-2 rounded-xl text-xs font-mono border transition-all flex items-center gap-2 ${
-                      clienteFiltro === c ? col.activo : col.inactivo
-                    }`}
+                    className={`px-4 py-2 rounded-xl text-xs font-mono border transition-all flex items-center gap-2 ${clienteFiltro === c ? col.activo : col.inactivo
+                      }`}
                   >
                     <span className={`w-1.5 h-1.5 rounded-full ${col.dot}`} />
                     {c} ({count})
@@ -313,6 +310,7 @@ export default function Home() {
         <EscanearCuaderno
           onClose={() => setMostrarEscanear(false)}
           onGuardados={cargar}
+          plantas={plantas}
         />
       )}
 
