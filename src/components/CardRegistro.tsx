@@ -1,10 +1,10 @@
 'use client';
 // src/components/CardRegistro.tsx
-import { RegistroBitacora, Planta } from '@/lib/types';
+import { RegistroBitacora, Planta, CAUSAS_CARBON_FREE, CAUSAS_MATRIX, TIPOS_ACONTECIMIENTO_SELECT } from '@/lib/types';
 import { eliminarRegistro, actualizarRegistro } from '@/lib/bitacora';
 import {
   Sun, Clock, AlertTriangle, FileText, Trash2, CalendarDays,
-  Pencil, X, Check, Loader2, ClipboardCopy, ClipboardCheck
+  Pencil, X, Check, Loader2, ClipboardCopy, ClipboardCheck, Building2, Copy
 } from 'lucide-react';
 import { useState } from 'react';
 
@@ -13,6 +13,7 @@ interface Props {
   plantas: Planta[];
   onEliminado: () => void;
   onActualizado: () => void;
+  onClonar: (registro: RegistroBitacora) => void;
 }
 
 function calcDuracion(r: RegistroBitacora): string | null {
@@ -32,7 +33,19 @@ function formatDate(fecha: string): string {
   return `${d}/${m}/${y}`;
 }
 
-export default function CardRegistro({ registro, plantas, onEliminado, onActualizado }: Props) {
+const MESES_CORTOS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+function formatDateExcelHeader(fecha: string): string {
+  const [y, m, d] = fecha.split('-');
+  return `${parseInt(d)}-${MESES_CORTOS[parseInt(m) - 1]}-${y}`;
+}
+
+function formatDateExcel(fecha: string): string {
+  const [y, m, d] = fecha.split('-');
+  return `${parseInt(m)}/${parseInt(d)}/${y}`;
+}
+
+export default function CardRegistro({ registro, plantas, onEliminado, onActualizado, onClonar }: Props) {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [eliminando, setEliminando] = useState(false);
   const [editando, setEditando] = useState(false);
@@ -49,20 +62,95 @@ export default function CardRegistro({ registro, plantas, onEliminado, onActuali
     setForm(prev => ({ ...prev, [field]: value }));
 
   const copiarParaExcel = async () => {
-    const r = registro;
-    const columnas = [
-      formatDate(r.fechaInicio),
-      r.planta,
-      r.acontecimiento,
-      r.causa,
-      r.detalle,
-      formatDate(r.fechaInicio),
-      r.horaInicio,
-      formatDate(r.fechaFin),
-      r.horaFin,
-      calcDuracion(r) ?? '',
-      r.estado ?? 'pendiente',
-    ];
+    const limpiar = (s?: string) => (s ?? '').replace(/[\r\n\t]+/g, ' ').trim();
+    const r = {
+      ...registro,
+      acontecimiento: limpiar(registro.acontecimiento),
+      causa: limpiar(registro.causa),
+      detalle: limpiar(registro.detalle),
+    };
+    let columnas: string[];
+
+    if (r.cliente === 'Carbon Free') {
+      columnas = [
+        '',                                                  // Col 1: vacía
+        '',                                                  // Col 2: vacía
+        formatDateExcelHeader(r.fechaInicio),                // Col 3: "14-Mar-2026"
+        r.estado === 'resuelto' ? 'Resuelto' : 'Pendiente', // Col 4: estado
+        r.planta,                                            // Col 5: planta
+        r.acontecimiento,                                    // Col 6: acontecimiento
+        '',                                                  // Col 7: vacía
+        '',                                                  // Col 8: vacía
+        r.causa,                                             // Col 9: causa
+        '',                                                  // Col 10: vacía
+        '',                                                  // Col 11: vacía
+        '',                                                  // Col 12: vacía
+        '',                                                  // Col 13: vacía
+        formatDateExcel(r.fechaInicio),                      // Col 14: fecha inicio
+        r.horaInicio,                                        // Col 15: hora inicio
+        '',                                                  // Col 16: intacta
+        '',                                                  // Col 17: intacta
+        '',                                                  // Col 18: intacta
+        '',                                                  // Col 19: intacta
+        '',                                                  // Col 20: intacta
+        '',                                                  // Col 21: intacta
+        '',                                                  // Col 22: intacta
+        '',                                                  // Col 23: intacta
+        '',                                                  // Col 24: intacta
+        formatDateExcel(r.fechaFin),                         // Col 25: fecha fin
+        r.horaFin,                                           // Col 26: hora fin
+        '=(P952-O952)*24',                                   // Col 27: fórmula horas
+        '=(SI(U950>T950;U950-T950;(U950+0,5)-(T950-0,5)))*24', // Col 28: fórmula diferencia
+        '=(AK950)*24',                                       // Col 29: fórmula AK
+        'Si',                                                // Col 30: perdió generación
+        '',                                                  // Col 31
+        '',                                                  // Col 32
+        '',                                                  // Col 33
+        '',                                                  // Col 34
+        '',                                                  // Col 35
+        '',                                                  // Col 36
+        '=SI(N952="";"";((Y952+Z952)-(N952+O952)))',         // Col 37: fórmula
+        '',                                                  // Col 38
+        '=SI.ERROR(BUSCARV(E952;Datos!M$6:Datos!P980;4;0);0)', // Col 39: fórmula
+        '',                                                  // Col 40
+        '',                                                  // Col 41
+        r.detalle ?? '',                                     // Col 42: detalle adicional
+      ];
+    } else if (r.cliente === 'Matrix') {
+      columnas = [
+        '',                                                  // Col 1: vacía
+        formatDate(r.fechaInicio),                           // Col 2: fecha inicio DD/MM/YYYY
+        r.estado === 'resuelto' ? 'Resuelto' : 'Pendiente', // Col 3: estado
+        r.planta,                                            // Col 4: planta
+        r.acontecimiento,                                    // Col 5: acontecimiento
+        '',                                                  // Col 6: vacía
+        '',                                                  // Col 7: vacía
+        '',                                                  // Col 8: vacía
+        '',                                                  // Col 9: vacía
+        formatDate(r.fechaInicio),                           // Col 10: fecha inicio DD/MM/YYYY
+        r.horaInicio,                                        // Col 11: hora inicio
+        formatDate(r.fechaFin),                              // Col 12: fecha fin
+        r.horaFin,                                           // Col 13: hora fin
+        '=SI(Y(#REF!>=0;#REF!<=2);"SI";"NO")',              // Col 14: fórmula
+        '=SI(Y(#REF!>=0;#REF!<=2);"SI";"NO")',              // Col 15: fórmula
+        r.causa,                                             // Col 16: causa
+        r.detalle ?? '',                                     // Col 17: detalle
+      ];
+    } else {
+      columnas = [
+        formatDate(r.fechaInicio),
+        r.planta,
+        r.acontecimiento,
+        r.causa,
+        r.detalle ?? '',
+        formatDate(r.fechaInicio),
+        r.horaInicio,
+        formatDate(r.fechaFin),
+        r.horaFin,
+        calcDuracion(r) ?? '',
+        r.estado ?? 'pendiente',
+      ];
+    }
     const texto = columnas.join('\t');
     try {
       await navigator.clipboard.writeText(texto);
@@ -163,16 +251,41 @@ export default function CardRegistro({ registro, plantas, onEliminado, onActuali
 
           <div>
             <label className="text-xs font-mono text-slate-500 uppercase tracking-wide">Acontecimiento</label>
-            <textarea rows={2} value={form.acontecimiento}
-              onChange={e => set('acontecimiento', e.target.value)}
-              className="input-solar w-full rounded-lg px-2 py-1.5 text-xs mt-1 resize-none" />
+            {form.cliente === 'Matrix' && form.tipo !== 'oficina' ? (
+              <select value={form.acontecimiento}
+                onChange={e => set('acontecimiento', e.target.value)}
+                className="input-solar w-full rounded-lg px-2 py-1.5 text-xs mt-1">
+                <option value="">Selecciona...</option>
+                {TIPOS_ACONTECIMIENTO_SELECT.map(t => (
+                  <option key={t} value={t}>{t}</option>
+                ))}
+              </select>
+            ) : (
+              <textarea rows={2} value={form.acontecimiento}
+                onChange={e => set('acontecimiento', e.target.value)}
+                className="input-solar w-full rounded-lg px-2 py-1.5 text-xs mt-1 resize-none" />
+            )}
           </div>
 
           <div>
             <label className="text-xs font-mono text-slate-500 uppercase tracking-wide">Causa</label>
-            <textarea rows={2} value={form.causa}
-              onChange={e => set('causa', e.target.value)}
-              className="input-solar w-full rounded-lg px-2 py-1.5 text-xs mt-1 resize-none" />
+            {form.cliente === 'Carbon Free' && form.tipo !== 'oficina' ? (
+              <select value={form.causa} onChange={e => set('causa', e.target.value)}
+                className="input-solar w-full rounded-lg px-2 py-1.5 text-xs mt-1">
+                <option value="">Selecciona la causa...</option>
+                {CAUSAS_CARBON_FREE.map(c => <option key={c} value={c}>{c}</option>)}
+              </select>
+            ) : form.cliente === 'Matrix' && form.tipo !== 'oficina' ? (
+              <select value={form.causa} onChange={e => set('causa', e.target.value)}
+                className="input-solar w-full rounded-lg px-2 py-1.5 text-xs mt-1">
+                <option value="">Selecciona la causa...</option>
+                {CAUSAS_MATRIX.map(c => <option key={c} value={c}>{c}</option>)}
+              </select>
+            ) : (
+              <textarea rows={2} value={form.causa}
+                onChange={e => set('causa', e.target.value)}
+                className="input-solar w-full rounded-lg px-2 py-1.5 text-xs mt-1 resize-none" />
+            )}
           </div>
 
           <div>
@@ -237,18 +350,36 @@ export default function CardRegistro({ registro, plantas, onEliminado, onActuali
     );
   }
 
+  const esOficina = registro.tipo === 'oficina';
+
   // ── MODO VISTA ──
   return (
-    <div className="card-registro rounded-2xl p-5 animate-fade-up">
+    <div className={`card-registro rounded-2xl p-5 animate-fade-up ${esOficina ? 'border-violet-500/30' : ''}`}>
       <div className="flex items-start justify-between gap-3 mb-4">
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-lg bg-amber-500/15 border border-amber-500/25 flex items-center justify-center flex-shrink-0">
-            <Sun size={15} className="text-amber-400" />
+          <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${
+            esOficina
+              ? 'bg-violet-500/15 border border-violet-500/25'
+              : 'bg-amber-500/15 border border-amber-500/25'
+          }`}>
+            {esOficina
+              ? <Building2 size={15} className="text-violet-400" />
+              : <Sun size={15} className="text-amber-400" />
+            }
           </div>
           <div>
-            <p className="font-display font-700 text-amber-400 text-sm uppercase tracking-wider leading-none">
-              {registro.planta}
-            </p>
+            <div className="flex items-center gap-2">
+              <p className={`font-display font-700 text-sm uppercase tracking-wider leading-none ${
+                esOficina ? 'text-violet-400' : 'text-amber-400'
+              }`}>
+                {esOficina ? 'Oficina' : registro.planta}
+              </p>
+              {esOficina && (
+                <span className="bg-violet-500/15 border border-violet-500/30 text-violet-400 font-mono text-xs px-1.5 py-0.5 rounded-md">
+                  OFICINA
+                </span>
+              )}
+            </div>
             <p className="font-mono text-xs text-slate-500 mt-0.5">{formatDate(registro.fechaInicio)}</p>
           </div>
         </div>
@@ -262,6 +393,11 @@ export default function CardRegistro({ registro, plantas, onEliminado, onActuali
             }`}>
             {copiado ? <ClipboardCheck size={13} /> : <ClipboardCopy size={13} />}
             {copiado && <span className="font-mono">¡Copiado!</span>}
+          </button>
+
+          <button onClick={() => onClonar(registro)} title="Clonar registro"
+            className="p-1.5 rounded-lg text-slate-600 hover:text-violet-400 hover:bg-violet-400/10 transition-all">
+            <Copy size={13} />
           </button>
 
           <button onClick={handleEdit} title="Editar"
@@ -284,8 +420,10 @@ export default function CardRegistro({ registro, plantas, onEliminado, onActuali
       <div className="mb-3">
         <div className="flex items-center justify-between mb-1">
           <div className="flex items-center gap-1.5">
-            <AlertTriangle size={12} className="text-cyan-400" />
-            <span className="font-mono text-xs text-cyan-400 uppercase tracking-widest">Acontecimiento</span>
+            <AlertTriangle size={12} className={esOficina ? 'text-violet-400' : 'text-cyan-400'} />
+            <span className={`font-mono text-xs uppercase tracking-widest ${esOficina ? 'text-violet-400' : 'text-cyan-400'}`}>
+              {esOficina ? 'Novedad de Oficina' : 'Acontecimiento'}
+            </span>
           </div>
           <span className={`badge border px-2 py-0.5 rounded-full text-xs ${estadoBadge(registro.estado)}`}>
             {registro.estado === 'resuelto' ? '✓ Resuelto' : '⏳ Pendiente'}

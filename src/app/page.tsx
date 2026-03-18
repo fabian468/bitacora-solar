@@ -15,7 +15,7 @@ import ConfigTelegram from '@/components/ConfigTelegram';
 import {
   Sun, Plus, RefreshCw, Search, Zap, Activity,
   BookOpen, FileText, LayoutDashboard, Building2, Bell, Truck, Monitor,
-  Moon
+  Moon, Calendar, X
 } from 'lucide-react';
 
 type Vista = 'bitacora' | 'informe' | 'plantas' | 'despachos' | 'anydesk' | 'alertas';
@@ -38,7 +38,10 @@ export default function Home() {
   const [plantas, setPlantas] = useState<Planta[]>([]);
   const [vista, setVista] = useState<Vista>('bitacora');
   const [clienteFiltro, setClienteFiltro] = useState<Cliente | 'todos'>('todos');
+  const [fechaDesde, setFechaDesde] = useState('');
+  const [fechaHasta, setFechaHasta] = useState('');
   const [mostrarForm, setMostrarForm] = useState(false);
+  const [registroAclonar, setRegistroAclonar] = useState<RegistroBitacora | undefined>(undefined);
   const [mostrarEscanear, setMostrarEscanear] = useState(false);
   const [cargando, setCargando] = useState(true);
   const [busqueda, setBusqueda] = useState('');
@@ -80,8 +83,18 @@ export default function Home() {
     const matchCliente = clienteFiltro === 'todos' || r.cliente === clienteFiltro;
     const matchBusqueda = !busqueda || [r.planta, r.acontecimiento, r.causa, r.detalle]
       .some(t => t?.toLowerCase().includes(busqueda.toLowerCase()));
-    return matchCliente && matchBusqueda;
+    const matchDesde = !fechaDesde || r.fechaInicio >= fechaDesde;
+    const matchHasta = !fechaHasta || r.fechaInicio <= fechaHasta;
+    return matchCliente && matchBusqueda && matchDesde && matchHasta;
   });
+
+  const setRangoFecha = (dias: number) => {
+    const desde = new Date(Date.now() - dias * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+    setFechaDesde(desde);
+    setFechaHasta(hoy);
+  };
+
+  const hayFiltroFecha = fechaDesde || fechaHasta;
 
   const hoy = new Date().toISOString().split('T')[0];
   const deHoy = registros.filter(r => r.fechaInicio === hoy).length;
@@ -228,9 +241,9 @@ export default function Home() {
               })}
             </div>
 
-            {/* Search */}
-            <div className="flex items-center gap-3 mb-6">
-              <div className="relative flex-1 max-w-md">
+            {/* Search + Filtros fecha */}
+            <div className="flex flex-wrap items-center gap-2 mb-6">
+              <div className="relative flex-1 min-w-0">
                 <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-600" />
                 <input
                   type="text"
@@ -240,7 +253,56 @@ export default function Home() {
                   className="input-solar w-full rounded-xl pl-9 pr-4 py-2.5 text-sm"
                 />
               </div>
-              <button onClick={cargar} className="btn-ghost p-2.5 rounded-xl">
+
+              <div className="flex items-center gap-1.5 flex-shrink-0">
+                {[
+                  { label: 'Hoy', dias: 0 },
+                  { label: '7d', dias: 7 },
+                  { label: '15d', dias: 15 },
+                  { label: 'Mes', dias: 30 },
+                ].map(({ label, dias }) => (
+                  <button
+                    key={label}
+                    onClick={() => dias === 0
+                      ? (setFechaDesde(hoy), setFechaHasta(hoy))
+                      : setRangoFecha(dias)
+                    }
+                    className={`px-2.5 py-2 rounded-xl text-xs font-mono border transition-all ${
+                      (dias === 0 && fechaDesde === hoy && fechaHasta === hoy) ||
+                      (dias > 0 && fechaDesde === new Date(Date.now() - dias * 86400000).toISOString().split('T')[0] && fechaHasta === hoy)
+                        ? 'bg-amber-500/15 border-amber-500/40 text-amber-400'
+                        : 'border-[var(--c-border-sub)] text-slate-500 hover:border-amber-500/30 hover:text-amber-400'
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
+                <input
+                  type="date"
+                  value={fechaDesde}
+                  onChange={e => setFechaDesde(e.target.value)}
+                  className="input-solar rounded-xl px-2 py-2 text-xs w-32 hidden sm:block"
+                  title="Desde"
+                />
+                <input
+                  type="date"
+                  value={fechaHasta}
+                  onChange={e => setFechaHasta(e.target.value)}
+                  className="input-solar rounded-xl px-2 py-2 text-xs w-32 hidden sm:block"
+                  title="Hasta"
+                />
+                {hayFiltroFecha && (
+                  <button
+                    onClick={() => { setFechaDesde(''); setFechaHasta(''); }}
+                    className="p-2 rounded-xl text-slate-500 hover:text-red-400 border border-transparent hover:border-red-400/30 transition-all"
+                    title="Limpiar filtro de fecha"
+                  >
+                    <X size={13} />
+                  </button>
+                )}
+              </div>
+
+              <button onClick={cargar} className="btn-ghost p-2.5 rounded-xl flex-shrink-0">
                 <RefreshCw size={14} className={cargando ? 'spin-slow' : ''} />
               </button>
             </div>
@@ -295,6 +357,7 @@ export default function Home() {
                       plantas={plantas}
                       onEliminado={cargar}
                       onActualizado={cargar}
+                      onClonar={reg => { setRegistroAclonar(reg); setMostrarForm(true); }}
                     />
                   </div>
                 ))}
@@ -333,9 +396,10 @@ export default function Home() {
       {/* Modales */}
       {mostrarForm && (
         <FormularioRegistro
-          onClose={() => setMostrarForm(false)}
-          onCreado={cargar}
+          onClose={() => { setMostrarForm(false); setRegistroAclonar(undefined); }}
+          onCreado={() => { cargar(); setRegistroAclonar(undefined); }}
           plantas={plantas}
+          registroBase={registroAclonar}
         />
       )}
 

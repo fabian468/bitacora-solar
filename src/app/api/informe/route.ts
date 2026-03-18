@@ -14,12 +14,14 @@ type RegistroResumen = {
   estado?: string;
 };
 
-function buildResumen(registros: RegistroResumen[]): string {
+type RegistroResumenExt = RegistroResumen & { tipo?: string };
+
+function buildResumen(registros: RegistroResumenExt[]): string {
   return registros.map((r, i) => `
-EVENTO ${i + 1}:
-- Planta: ${r.planta} (${r.cliente})
+EVENTO ${i + 1}${r.tipo === 'oficina' ? ' [NOVEDAD DE OFICINA]' : ''}:
+- ${r.tipo === 'oficina' ? 'Origen: Oficina' : `Planta: ${r.planta} (${r.cliente})`}
 - Acontecimiento: ${r.acontecimiento}
-- Causa: ${r.causa}
+- Causa: ${r.causa || '-'}
 - Detalle: ${r.detalle || 'Sin detalle'}
 - Inicio: ${r.fechaInicio} ${r.horaInicio}
 - Fin: ${r.fechaFin} ${r.horaFin}
@@ -76,6 +78,9 @@ Genera un REPORTE DE ENTREGA DE TURNO en español con esta estructura exacta:
 ## EQUIPOS A VIGILAR
 [Menciona equipos o plantas que requieren atención especial, basado en los eventos del turno]
 
+## NOVEDADES DE OFICINA
+[Lista los eventos marcados como [NOVEDAD DE OFICINA]. Si no hay ninguno, escribe "Sin novedades de oficina."]
+
 ## RECOMENDACIONES PARA EL TURNO ENTRANTE
 [2-3 puntos concretos de lo que debe priorizar o revisar el operador que entra]
 
@@ -83,7 +88,12 @@ Usa lenguaje directo, como lo hablaría un técnico a otro técnico. Sin rodeos.
 }
 
 export async function POST(req: NextRequest) {
-  const { registros, fechaDesde, fechaHasta, tipoInforme = 'diario' } = await req.json();
+  const { registros, fechaDesde, fechaHasta, tipoInforme = 'diario' } = await req.json() as {
+    registros: RegistroResumenExt[];
+    fechaDesde: string;
+    fechaHasta: string;
+    tipoInforme: string;
+  };
 
   if (!registros || registros.length === 0) {
     return NextResponse.json({ error: 'No hay registros para el período' }, { status: 400 });

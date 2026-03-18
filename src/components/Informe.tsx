@@ -138,10 +138,12 @@ export default function Informe({ registros }: Props) {
   const [informeAbierto, setInformeAbierto] = useState<InformeGuardado | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
 
+  // Para turno: incluye todo (planta + oficina). Para diario: excluye oficina.
   const registrosFiltrados = registros.filter(r => {
     const enRango = r.fechaInicio >= fechaDesde && r.fechaInicio <= fechaHasta;
     const enCliente = clienteFiltro === 'todos' || r.cliente === clienteFiltro;
-    return enRango && enCliente;
+    const enTipo = tipoInforme === 'turno' || r.tipo !== 'oficina';
+    return enRango && enCliente && enTipo;
   });
 
   const pendientes = registrosFiltrados.filter(r => r.estado !== 'resuelto');

@@ -454,11 +454,11 @@ export default function GestionDespachos() {
                       {(d.alimentador || d.subestacion) && (
                         <div className="grid grid-cols-2 gap-3">
                           {d.alimentador && (
-                            <div className="rounded-xl bg-[var(--c-inner)] border border-[var(--c-border-sub)] px-4 py-3">
-                              <p className="font-mono text-xs text-slate-500 mb-1.5 flex items-center gap-1.5">
-                                <Zap size={10} /> ALIMENTADOR
+                            <div className="rounded-xl bg-amber-500/10 border border-amber-400/40 px-4 py-3" style={{ boxShadow: '0 0 12px rgba(251,191,36,0.12)' }}>
+                              <p className="font-mono text-xs text-amber-400/70 mb-1.5 flex items-center gap-1.5">
+                                <Zap size={10} className="text-amber-400" /> ALIMENTADOR
                               </p>
-                              <p className="font-mono text-base text-[var(--c-text)] font-700 tracking-wide">{d.alimentador}</p>
+                              <p className="font-mono text-base text-amber-300 font-700 tracking-wide">{d.alimentador}</p>
                             </div>
                           )}
                           {d.subestacion && (

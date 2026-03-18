@@ -2,13 +2,14 @@
 // src/components/FormularioRegistro.tsx
 import { useState } from 'react';
 import { crearRegistro } from '@/lib/bitacora';
-import { RegistroBitacora, Planta, Cliente, CLIENTES } from '@/lib/types';
-import { X, Sparkles, Loader2, Sun, Clock } from 'lucide-react';
+import { RegistroBitacora, Planta, Cliente, CLIENTES, CAUSAS_CARBON_FREE, CAUSAS_MATRIX, TIPOS_ACONTECIMIENTO_SELECT } from '@/lib/types';
+import { X, Sparkles, Loader2, Sun, Clock, Building2 } from 'lucide-react';
 
 interface Props {
   onClose: () => void;
   onCreado: () => void;
   plantas: Planta[];
+  registroBase?: RegistroBitacora;
 }
 
 type CampoAI = 'acontecimiento' | 'causa' | 'detalle';
@@ -29,14 +30,17 @@ const CLIENTE_ESTILOS: Record<Cliente, { activo: string; inactivo: string; dot: 
   },
 };
 
-export default function FormularioRegistro({ onClose, onCreado, plantas }: Props) {
-  const [cliente, setCliente] = useState<Cliente>('Carbon Free');
+export default function FormularioRegistro({ onClose, onCreado, plantas, registroBase }: Props) {
+  const esClonacion = !!registroBase;
+  const [tipoRegistro, setTipoRegistro] = useState<'planta' | 'oficina'>(registroBase?.tipo ?? 'planta');
+  const [cliente, setCliente] = useState<Cliente>(registroBase?.cliente ?? 'Carbon Free');
   const [form, setForm] = useState<Omit<RegistroBitacora, 'id' | 'createdAt'>>({
-    planta: '',
-    cliente: 'Carbon Free',
-    acontecimiento: '',
-    causa: '',
-    detalle: '',
+    tipo: registroBase?.tipo ?? 'planta',
+    planta: registroBase?.planta ?? '',
+    cliente: registroBase?.cliente ?? 'Carbon Free',
+    acontecimiento: registroBase?.acontecimiento ?? '',
+    causa: registroBase?.causa ?? '',
+    detalle: registroBase?.detalle ?? '',
     fechaInicio: HOY,
     horaInicio: AHORA,
     fechaFin: HOY,
@@ -53,9 +57,20 @@ export default function FormularioRegistro({ onClose, onCreado, plantas }: Props
   const set = (field: string, value: string) =>
     setForm(prev => ({ ...prev, [field]: value }));
 
+  const cambiarTipo = (t: 'planta' | 'oficina') => {
+    setTipoRegistro(t);
+    setForm(prev => ({
+      ...prev,
+      tipo: t,
+      planta: t === 'oficina' ? 'Oficina' : '',
+      causa: t === 'oficina' ? (prev.causa || '-') : prev.causa,
+    }));
+    setError('');
+  };
+
   const cambiarCliente = (c: Cliente) => {
     setCliente(c);
-    setForm(prev => ({ ...prev, cliente: c, planta: '' }));
+    setForm(prev => ({ ...prev, cliente: c, planta: tipoRegistro === 'oficina' ? 'Oficina' : '' }));
   };
 
   const mejorarConIA = async (campo: CampoAI) => {
@@ -78,8 +93,12 @@ export default function FormularioRegistro({ onClose, onCreado, plantas }: Props
   };
 
   const handleSubmit = async () => {
-    if (!form.planta || !form.acontecimiento || !form.causa) {
+    if (tipoRegistro === 'planta' && (!form.planta || !form.acontecimiento || !form.causa)) {
       setError('Completa los campos requeridos: planta, acontecimiento y causa.');
+      return;
+    }
+    if (tipoRegistro === 'oficina' && !form.acontecimiento) {
+      setError('Describe el acontecimiento de oficina.');
       return;
     }
     setCargando(true);
@@ -105,8 +124,12 @@ export default function FormularioRegistro({ onClose, onCreado, plantas }: Props
               <Sun size={18} className="text-amber-400" />
             </div>
             <div>
-              <h2 className="font-display font-700 text-xl text-[var(--c-text)] tracking-wide">NUEVO REGISTRO</h2>
-              <p className="text-xs text-slate-500">Bitácora de Planta Fotovoltaica</p>
+              <h2 className="font-display font-700 text-xl text-[var(--c-text)] tracking-wide">
+                {esClonacion ? 'CLONAR REGISTRO' : 'NUEVO REGISTRO'}
+              </h2>
+              <p className="text-xs text-slate-500">
+                {esClonacion ? `Basado en: ${registroBase!.planta || 'Oficina'}` : 'Bitácora de Planta Fotovoltaica'}
+              </p>
             </div>
           </div>
           <button onClick={onClose} className="btn-ghost p-2 rounded-lg">
@@ -116,6 +139,43 @@ export default function FormularioRegistro({ onClose, onCreado, plantas }: Props
 
         {/* Body */}
         <div className="p-4 sm:p-6 space-y-4 sm:space-y-5 max-h-[85vh] overflow-y-auto">
+
+          {/* Toggle tipo de registro */}
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={() => cambiarTipo('planta')}
+              className={`py-2.5 px-4 rounded-xl border-2 transition-all flex items-center gap-2.5 font-display font-600 tracking-wide text-sm ${
+                tipoRegistro === 'planta'
+                  ? 'bg-amber-500/15 border-amber-500/40 text-amber-400'
+                  : 'border-[var(--c-border)] text-slate-500 hover:border-amber-500/30 hover:text-amber-400'
+              }`}
+            >
+              <Sun size={15} className="flex-shrink-0" />
+              Planta
+              {tipoRegistro === 'planta' && <span className="ml-auto text-xs">✓</span>}
+            </button>
+            <button
+              type="button"
+              onClick={() => cambiarTipo('oficina')}
+              className={`py-2.5 px-4 rounded-xl border-2 transition-all flex items-center gap-2.5 font-display font-600 tracking-wide text-sm ${
+                tipoRegistro === 'oficina'
+                  ? 'bg-violet-500/15 border-violet-500/40 text-violet-400'
+                  : 'border-[var(--c-border)] text-slate-500 hover:border-violet-500/30 hover:text-violet-400'
+              }`}
+            >
+              <Building2 size={15} className="flex-shrink-0" />
+              Oficina
+              {tipoRegistro === 'oficina' && <span className="ml-auto text-xs">✓</span>}
+            </button>
+          </div>
+
+          {tipoRegistro === 'oficina' && (
+            <div className="bg-violet-500/10 border border-violet-500/25 rounded-xl px-4 py-2.5 flex items-center gap-2">
+              <Building2 size={13} className="text-violet-400 flex-shrink-0" />
+              <p className="text-xs text-violet-300">Este registro aparecerá en el informe de entrega de turno, no en el resumen del día.</p>
+            </div>
+          )}
 
           {/* Selector de cliente */}
           <div className="space-y-2">
@@ -143,8 +203,14 @@ export default function FormularioRegistro({ onClose, onCreado, plantas }: Props
             </div>
           </div>
 
-          {/* Planta (filtrada por cliente) */}
-          <div className="space-y-1">
+          {/* Planta (filtrada por cliente) — oculta en modo oficina */}
+          {tipoRegistro === 'oficina' && (
+            <div className="input-solar w-full rounded-lg px-3 py-2.5 text-sm text-violet-400 flex items-center gap-2 border border-violet-500/25">
+              <Building2 size={13} />
+              <span>Planta: <strong>Oficina</strong></span>
+            </div>
+          )}
+          <div className={`space-y-1 ${tipoRegistro === 'oficina' ? 'hidden' : ''}`}>
             <label className="text-xs font-display uppercase tracking-widest text-slate-400">
               Planta <span className="text-amber-500">*</span>
             </label>
@@ -169,52 +235,89 @@ export default function FormularioRegistro({ onClose, onCreado, plantas }: Props
 
           {/* Acontecimiento */}
           <div className="space-y-1">
-            <div className="flex items-center justify-between">
-              <label className="text-xs font-display uppercase tracking-widest text-slate-400">
-                Acontecimiento <span className="text-amber-500">*</span>
-              </label>
-              <button
-                type="button"
-                onClick={() => mejorarConIA('acontecimiento')}
-                disabled={!form.acontecimiento.trim() || mejorando === 'acontecimiento'}
-                className="btn-ai px-2 py-1 rounded flex items-center gap-1"
+            <label className="text-xs font-display uppercase tracking-widest text-slate-400">
+              Acontecimiento <span className="text-amber-500">*</span>
+            </label>
+            {cliente === 'Matrix' && tipoRegistro !== 'oficina' ? (
+              <select
+                value={form.acontecimiento}
+                onChange={e => set('acontecimiento', e.target.value)}
+                className="input-solar w-full rounded-lg px-3 py-2 text-sm"
               >
-                {mejorando === 'acontecimiento' ? <Loader2 size={11} className="spin-slow" /> : <Sparkles size={11} />}
-                {mejorando === 'acontecimiento' ? 'Mejorando...' : 'Mejorar con IA'}
-              </button>
-            </div>
-            <textarea
-              rows={2}
-              value={form.acontecimiento}
-              onChange={e => set('acontecimiento', e.target.value)}
-              placeholder="Ej: Falla en inversor string 3 sector norte..."
-              className="input-solar w-full rounded-lg px-3 py-2 text-sm resize-none"
-            />
+                <option value="">Selecciona el acontecimiento...</option>
+                {TIPOS_ACONTECIMIENTO_SELECT.map(t => (
+                  <option key={t} value={t}>{t}</option>
+                ))}
+              </select>
+            ) : (
+              <div className="flex items-start gap-2">
+                <textarea
+                  rows={2}
+                  value={form.acontecimiento}
+                  onChange={e => set('acontecimiento', e.target.value)}
+                  placeholder={tipoRegistro === 'oficina' ? 'Describe la novedad de oficina...' : 'Ej: Falla en inversor string 3 sector norte...'}
+                  className="input-solar w-full rounded-lg px-3 py-2 text-sm resize-none"
+                />
+                <button
+                  type="button"
+                  onClick={() => mejorarConIA('acontecimiento')}
+                  disabled={!form.acontecimiento.trim() || mejorando === 'acontecimiento'}
+                  className="btn-ai px-2 py-1 rounded flex items-center gap-1 flex-shrink-0 mt-0.5"
+                >
+                  {mejorando === 'acontecimiento' ? <Loader2 size={11} className="spin-slow" /> : <Sparkles size={11} />}
+                  {mejorando === 'acontecimiento' ? 'Mejorando...' : 'IA'}
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Causa */}
           <div className="space-y-1">
-            <div className="flex items-center justify-between">
-              <label className="text-xs font-display uppercase tracking-widest text-slate-400">
-                Causa del acontecimiento <span className="text-amber-500">*</span>
-              </label>
-              <button
-                type="button"
-                onClick={() => mejorarConIA('causa')}
-                disabled={!form.causa.trim() || mejorando === 'causa'}
-                className="btn-ai px-2 py-1 rounded flex items-center gap-1"
+            <label className="text-xs font-display uppercase tracking-widest text-slate-400">
+              Causa del acontecimiento {tipoRegistro !== 'oficina' && <span className="text-amber-500">*</span>}
+            </label>
+            {cliente === 'Carbon Free' && tipoRegistro !== 'oficina' ? (
+              <select
+                value={form.causa}
+                onChange={e => set('causa', e.target.value)}
+                className="input-solar w-full rounded-lg px-3 py-2 text-sm"
               >
-                {mejorando === 'causa' ? <Loader2 size={11} className="spin-slow" /> : <Sparkles size={11} />}
-                {mejorando === 'causa' ? 'Mejorando...' : 'Mejorar con IA'}
-              </button>
-            </div>
-            <textarea
-              rows={2}
-              value={form.causa}
-              onChange={e => set('causa', e.target.value)}
-              placeholder="Ej: Sobrecalentamiento por ventilación bloqueada..."
-              className="input-solar w-full rounded-lg px-3 py-2 text-sm resize-none"
-            />
+                <option value="">Selecciona la causa...</option>
+                {CAUSAS_CARBON_FREE.map(c => (
+                  <option key={c} value={c}>{c}</option>
+                ))}
+              </select>
+            ) : cliente === 'Matrix' && tipoRegistro !== 'oficina' ? (
+              <select
+                value={form.causa}
+                onChange={e => set('causa', e.target.value)}
+                className="input-solar w-full rounded-lg px-3 py-2 text-sm"
+              >
+                <option value="">Selecciona la causa...</option>
+                {CAUSAS_MATRIX.map(c => (
+                  <option key={c} value={c}>{c}</option>
+                ))}
+              </select>
+            ) : (
+              <div className="flex items-start gap-2">
+                <textarea
+                  rows={2}
+                  value={form.causa}
+                  onChange={e => set('causa', e.target.value)}
+                  placeholder="Ej: Sobrecalentamiento por ventilación bloqueada..."
+                  className="input-solar w-full rounded-lg px-3 py-2 text-sm resize-none"
+                />
+                <button
+                  type="button"
+                  onClick={() => mejorarConIA('causa')}
+                  disabled={!form.causa.trim() || mejorando === 'causa'}
+                  className="btn-ai px-2 py-1 rounded flex items-center gap-1 flex-shrink-0 mt-0.5"
+                >
+                  {mejorando === 'causa' ? <Loader2 size={11} className="spin-slow" /> : <Sparkles size={11} />}
+                  {mejorando === 'causa' ? 'Mejorando...' : 'IA'}
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Fechas y Horas */}
