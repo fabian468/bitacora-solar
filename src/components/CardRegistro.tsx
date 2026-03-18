@@ -291,12 +291,12 @@ export default function CardRegistro({ registro, plantas, onEliminado, onActuali
             {registro.estado === 'resuelto' ? '✓ Resuelto' : '⏳ Pendiente'}
           </span>
         </div>
-        <p className="text-white font-500 text-sm leading-snug">{registro.acontecimiento}</p>
+        <p className="text-[var(--c-text)] font-500 text-sm leading-snug">{registro.acontecimiento}</p>
       </div>
 
       <div className="mb-3 pl-3 border-l-2 border-slate-700">
         <p className="text-xs text-slate-400 mb-0.5 font-mono uppercase tracking-wide">Causa</p>
-        <p className="text-slate-300 text-sm">{registro.causa}</p>
+        <p className="text-[var(--c-text-2)] text-sm">{registro.causa}</p>
       </div>
 
       {registro.detalle && (
@@ -309,11 +309,11 @@ export default function CardRegistro({ registro, plantas, onEliminado, onActuali
         </div>
       )}
 
-      <div className="flex items-center gap-4 pt-3 border-t border-[#1E2A3A]">
+      <div className="flex items-center gap-4 pt-3 border-t border-[var(--c-border-sub)]">
         <div className="flex items-center gap-1.5">
           <Clock size={11} className="text-slate-600" />
           <span className="font-mono text-xs text-slate-500">
-            Inicio: <span className="text-slate-300">
+            Inicio: <span className="text-[var(--c-text-2)]">
               {registro.fechaInicio !== registro.fechaFin ? `${formatDate(registro.fechaInicio)} ` : ''}
               {registro.horaInicio}
             </span>
@@ -322,7 +322,7 @@ export default function CardRegistro({ registro, plantas, onEliminado, onActuali
         <div className="flex items-center gap-1.5">
           <CalendarDays size={11} className="text-slate-600" />
           <span className="font-mono text-xs text-slate-500">
-            Fin: <span className="text-slate-300">
+            Fin: <span className="text-[var(--c-text-2)]">
               {registro.fechaInicio !== registro.fechaFin ? `${formatDate(registro.fechaFin)} ` : ''}
               {registro.horaFin}
             </span>

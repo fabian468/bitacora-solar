@@ -19,12 +19,12 @@ const AHORA = new Date().toTimeString().slice(0, 5);
 const CLIENTE_ESTILOS: Record<Cliente, { activo: string; inactivo: string; dot: string }> = {
   'Carbon Free': {
     activo: 'bg-green-500/20 border-green-500/50 text-green-400',
-    inactivo: 'border-[#2A3F5A] text-slate-500 hover:border-green-500/30 hover:text-green-400',
+    inactivo: 'border-[var(--c-border)] text-slate-500 hover:border-green-500/30 hover:text-green-400',
     dot: 'bg-green-400',
   },
   'Matrix': {
     activo: 'bg-cyan-500/20 border-cyan-500/50 text-cyan-400',
-    inactivo: 'border-[#2A3F5A] text-slate-500 hover:border-cyan-500/30 hover:text-cyan-400',
+    inactivo: 'border-[var(--c-border)] text-slate-500 hover:border-cyan-500/30 hover:text-cyan-400',
     dot: 'bg-cyan-400',
   },
 };
@@ -95,17 +95,17 @@ export default function FormularioRegistro({ onClose, onCreado, plantas }: Props
   };
 
   return (
-    <div className="modal-overlay fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="w-full max-w-2xl bg-[#0D1321] border border-[#2A3F5A] rounded-2xl shadow-2xl overflow-hidden">
+    <div className="modal-overlay fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4">
+      <div className="w-full max-w-2xl bg-[var(--c-card)] border border-[var(--c-border)] rounded-2xl shadow-2xl overflow-hidden">
 
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-[#2A3F5A]">
+        <div className="flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4 border-b border-[var(--c-border)]">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-lg bg-amber-500/10 border border-amber-500/30 flex items-center justify-center">
               <Sun size={18} className="text-amber-400" />
             </div>
             <div>
-              <h2 className="font-display font-700 text-xl text-white tracking-wide">NUEVO REGISTRO</h2>
+              <h2 className="font-display font-700 text-xl text-[var(--c-text)] tracking-wide">NUEVO REGISTRO</h2>
               <p className="text-xs text-slate-500">Bitácora de Planta Fotovoltaica</p>
             </div>
           </div>
@@ -115,7 +115,7 @@ export default function FormularioRegistro({ onClose, onCreado, plantas }: Props
         </div>
 
         {/* Body */}
-        <div className="p-6 space-y-5 max-h-[80vh] overflow-y-auto">
+        <div className="p-4 sm:p-6 space-y-4 sm:space-y-5 max-h-[85vh] overflow-y-auto">
 
           {/* Selector de cliente */}
           <div className="space-y-2">
@@ -272,7 +272,7 @@ export default function FormularioRegistro({ onClose, onCreado, plantas }: Props
                 className={`flex-1 py-2 rounded-xl text-sm font-mono border transition-all ${
                   form.estado !== 'resuelto'
                     ? 'bg-amber-500/20 border-amber-500/50 text-amber-400'
-                    : 'border-[#2A3F5A] text-slate-500 hover:border-amber-500/30'
+                    : 'border-[var(--c-border)] text-slate-500 hover:border-amber-500/30'
                 }`}>
                 ⏳ Pendiente
               </button>
@@ -280,7 +280,7 @@ export default function FormularioRegistro({ onClose, onCreado, plantas }: Props
                 className={`flex-1 py-2 rounded-xl text-sm font-mono border transition-all ${
                   form.estado === 'resuelto'
                     ? 'bg-green-500/20 border-green-500/50 text-green-400'
-                    : 'border-[#2A3F5A] text-slate-500 hover:border-green-500/30'
+                    : 'border-[var(--c-border)] text-slate-500 hover:border-green-500/30'
                 }`}>
                 ✓ Resuelto
               </button>

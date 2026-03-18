@@ -27,12 +27,12 @@ interface RegistroRevisado extends Omit<RegistroBitacora, 'id' | 'createdAt'> {
 const CLIENTE_ESTILOS: Record<Cliente, { activo: string; inactivo: string; dot: string }> = {
   'Carbon Free': {
     activo: 'bg-green-500/20 border-green-500/50 text-green-400',
-    inactivo: 'border-[#2A3F5A] text-slate-500 hover:border-green-500/30 hover:text-green-400',
+    inactivo: 'border-[var(--c-border)] text-slate-500 hover:border-green-500/30 hover:text-green-400',
     dot: 'bg-green-400',
   },
   'Matrix': {
     activo: 'bg-cyan-500/20 border-cyan-500/50 text-cyan-400',
-    inactivo: 'border-[#2A3F5A] text-slate-500 hover:border-cyan-500/30 hover:text-cyan-400',
+    inactivo: 'border-[var(--c-border)] text-slate-500 hover:border-cyan-500/30 hover:text-cyan-400',
     dot: 'bg-cyan-400',
   },
 };
@@ -163,16 +163,16 @@ export default function EscanearCuaderno({ onClose, onGuardados, plantas }: Prop
 
   return (
     <div className="modal-overlay fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="w-full max-w-3xl bg-[#0D1321] border border-[#2A3F5A] rounded-2xl shadow-2xl overflow-hidden max-h-[95vh] flex flex-col">
+      <div className="w-full max-w-3xl bg-[var(--c-card)] border border-[var(--c-border)] rounded-2xl shadow-2xl overflow-hidden max-h-[95vh] flex flex-col">
 
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-[#2A3F5A] flex-shrink-0">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--c-border)] flex-shrink-0">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-lg bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center">
               <BookOpen size={18} className="text-cyan-400" />
             </div>
             <div>
-              <h2 className="font-display font-700 text-xl text-white tracking-wide">ESCANEAR CUADERNO</h2>
+              <h2 className="font-display font-700 text-xl text-[var(--c-text)] tracking-wide">ESCANEAR CUADERNO</h2>
               <p className="text-xs text-slate-500">Digitaliza registros escritos a mano con IA</p>
             </div>
           </div>
@@ -277,7 +277,7 @@ export default function EscanearCuaderno({ onClose, onGuardados, plantas }: Prop
               <div
                 onDrop={handleDrop}
                 onDragOver={e => e.preventDefault()}
-                className="border-2 border-dashed border-[#2A3F5A] rounded-2xl p-8 text-center hover:border-cyan-500/50 transition-colors cursor-pointer"
+                className="border-2 border-dashed border-[var(--c-border)] rounded-2xl p-8 text-center hover:border-cyan-500/50 transition-colors cursor-pointer"
                 onClick={() => inputRef.current?.click()}
               >
                 {imagenPreview ? (
@@ -292,7 +292,7 @@ export default function EscanearCuaderno({ onClose, onGuardados, plantas }: Prop
                       <Upload size={28} className="text-cyan-400" />
                     </div>
                     <div>
-                      <p className="text-white font-500">Arrastra una foto aquí</p>
+                      <p className="text-[var(--c-text)] font-500">Arrastra una foto aquí</p>
                       <p className="text-slate-500 text-sm mt-1">o haz click para seleccionar</p>
                     </div>
                     <p className="text-xs text-slate-600">JPG, PNG, WEBP — máximo 5MB</p>
@@ -302,7 +302,7 @@ export default function EscanearCuaderno({ onClose, onGuardados, plantas }: Prop
 
               <button
                 onClick={() => camaraRef.current?.click()}
-                className="w-full py-3 rounded-xl border border-[#2A3F5A] text-slate-400 hover:border-cyan-500/40 hover:text-cyan-400 transition-all flex items-center justify-center gap-2 text-sm"
+                className="w-full py-3 rounded-xl border border-[var(--c-border)] text-slate-400 hover:border-cyan-500/40 hover:text-cyan-400 transition-all flex items-center justify-center gap-2 text-sm"
               >
                 <Camera size={16} /> Tomar foto con cámara
               </button>
@@ -340,7 +340,7 @@ export default function EscanearCuaderno({ onClose, onGuardados, plantas }: Prop
                 </div>
               </div>
               <div className="text-center space-y-2">
-                <p className="font-display font-700 text-xl text-white tracking-wide">ANALIZANDO IMAGEN</p>
+                <p className="font-display font-700 text-xl text-[var(--c-text)] tracking-wide">ANALIZANDO IMAGEN</p>
                 <p className="text-slate-500 text-sm">La IA está leyendo el cuaderno y extrayendo los registros...</p>
                 <div className="flex items-center justify-center gap-1 mt-4">
                   {[0, 1, 2].map(i => (
@@ -355,7 +355,7 @@ export default function EscanearCuaderno({ onClose, onGuardados, plantas }: Prop
           {/* ── PASO 3: REVISAR ── */}
           {(estado === 'revisar' || estado === 'guardando') && (
             <div className="space-y-4">
-              <div className="flex items-center justify-between bg-[#111827] border border-[#1E2A3A] rounded-xl px-4 py-3">
+              <div className="flex items-center justify-between bg-[var(--c-inner)] border border-[var(--c-border-sub)] rounded-xl px-4 py-3">
                 <div className="flex items-center gap-4">
                   <span className="font-mono text-xs text-slate-400">
                     Encontrados: <span className="text-cyan-400 font-500">{registros.length}</span>
@@ -371,10 +371,10 @@ export default function EscanearCuaderno({ onClose, onGuardados, plantas }: Prop
                 </div>
                 <div className="flex items-center gap-2">
                   <button onClick={() => setRegistros(prev => prev.map(r => ({ ...r, _seleccionado: true })))}
-                    className="text-xs text-slate-500 hover:text-slate-300 transition-colors">Todos</button>
+                    className="text-xs text-slate-500 hover:text-[var(--c-text-2)] transition-colors">Todos</button>
                   <span className="text-slate-700">|</span>
                   <button onClick={() => setRegistros(prev => prev.map(r => ({ ...r, _seleccionado: false })))}
-                    className="text-xs text-slate-500 hover:text-slate-300 transition-colors">Ninguno</button>
+                    className="text-xs text-slate-500 hover:text-[var(--c-text-2)] transition-colors">Ninguno</button>
                 </div>
               </div>
 
@@ -394,7 +394,7 @@ export default function EscanearCuaderno({ onClose, onGuardados, plantas }: Prop
                       className={`rounded-xl border transition-all ${
                         r._guardado ? 'border-green-500/30 bg-green-500/5' :
                         r._seleccionado ? 'border-cyan-500/30 bg-[#0D1B2A]' :
-                        'border-[#1E2A3A] bg-[#0A0E1A] opacity-60'
+                        'border-[var(--c-border-sub)] bg-[var(--c-bg)] opacity-60'
                       }`}
                     >
                       {/* Card header */}
@@ -420,7 +420,7 @@ export default function EscanearCuaderno({ onClose, onGuardados, plantas }: Prop
                               </span>
                             )}
                           </div>
-                          <p className="text-sm text-white font-500 truncate">{r.acontecimiento || 'Sin título'}</p>
+                          <p className="text-sm text-[var(--c-text)] font-500 truncate">{r.acontecimiento || 'Sin título'}</p>
                           <p className="font-mono text-xs text-slate-500">{r.planta} · {r.fechaInicio} {r.horaInicio}</p>
                         </div>
                         {!r._guardado && (
@@ -432,7 +432,7 @@ export default function EscanearCuaderno({ onClose, onGuardados, plantas }: Prop
 
                       {/* Formulario expandible */}
                       {r._expandido && !r._guardado && (
-                        <div className="px-4 pb-4 space-y-3 border-t border-[#1E2A3A] pt-3">
+                        <div className="px-4 pb-4 space-y-3 border-t border-[var(--c-border-sub)] pt-3">
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                             <div>
                               <label className="text-xs font-mono text-slate-500 uppercase">Planta</label>
@@ -529,7 +529,7 @@ export default function EscanearCuaderno({ onClose, onGuardados, plantas }: Prop
                 <CheckCircle size={40} className="text-green-400" />
               </div>
               <div className="text-center space-y-2">
-                <p className="font-display font-700 text-2xl text-white tracking-wide">¡DIGITALIZADO!</p>
+                <p className="font-display font-700 text-2xl text-[var(--c-text)] tracking-wide">¡DIGITALIZADO!</p>
                 <p className="text-slate-400">
                   Se guardaron <span className="text-green-400 font-600">{yaGuardados} registros</span> en la bitácora
                 </p>

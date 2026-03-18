@@ -10,23 +10,25 @@ import EscanearCuaderno from '@/components/EscanearCuaderno';
 import Informe from '@/components/Informe';
 import GestionPlantas from '@/components/GestionPlantas';
 import GestionDespachos from '@/components/GestionDespachos';
+import GestionAnyDesk from '@/components/GestionAnyDesk';
 import ConfigTelegram from '@/components/ConfigTelegram';
 import {
   Sun, Plus, RefreshCw, Search, Zap, Activity,
-  BookOpen, FileText, LayoutDashboard, Building2, Bell, Truck
+  BookOpen, FileText, LayoutDashboard, Building2, Bell, Truck, Monitor,
+  Moon
 } from 'lucide-react';
 
-type Vista = 'bitacora' | 'informe' | 'plantas' | 'despachos' | 'alertas';
+type Vista = 'bitacora' | 'informe' | 'plantas' | 'despachos' | 'anydesk' | 'alertas';
 
 const CLIENTE_COLORES: Record<Cliente, { activo: string; inactivo: string; dot: string }> = {
   'Carbon Free': {
     activo: 'bg-green-500/15 border-green-500/40 text-green-400',
-    inactivo: 'border-[#1E2A3A] text-slate-500 hover:border-green-500/30 hover:text-green-400',
+    inactivo: 'border-[var(--c-border-sub)] text-slate-500 hover:border-green-500/30 hover:text-green-400',
     dot: 'bg-green-400',
   },
   'Matrix': {
     activo: 'bg-cyan-500/15 border-cyan-500/40 text-cyan-400',
-    inactivo: 'border-[#1E2A3A] text-slate-500 hover:border-cyan-500/30 hover:text-cyan-400',
+    inactivo: 'border-[var(--c-border-sub)] text-slate-500 hover:border-cyan-500/30 hover:text-cyan-400',
     dot: 'bg-cyan-400',
   },
 };
@@ -41,6 +43,21 @@ export default function Home() {
   const [cargando, setCargando] = useState(true);
   const [busqueda, setBusqueda] = useState('');
   const [error, setError] = useState('');
+  const [temaOscuro, setTemaOscuro] = useState(true);
+
+  useEffect(() => {
+    const guardado = localStorage.getItem('tema');
+    const oscuro = guardado !== 'light';
+    setTemaOscuro(oscuro);
+    document.documentElement.setAttribute('data-theme', oscuro ? 'dark' : 'light');
+  }, []);
+
+  const toggleTema = () => {
+    const nuevo = !temaOscuro;
+    setTemaOscuro(nuevo);
+    document.documentElement.setAttribute('data-theme', nuevo ? 'dark' : 'light');
+    localStorage.setItem('tema', nuevo ? 'dark' : 'light');
+  };
 
   const cargar = useCallback(async () => {
     setCargando(true);
@@ -76,20 +93,20 @@ export default function Home() {
     <div className="min-h-screen bg-grid">
 
       {/* ── HEADER ── */}
-      <header className="sticky top-0 z-40 border-b border-[#1E2A3A] bg-[#0A0E1A]/95 backdrop-blur-md">
+      <header className="sticky top-0 z-40 border-b border-[var(--c-border-sub)] backdrop-blur-md" style={{ backgroundColor: 'var(--c-bg)' }}>
         <div className="max-w-6xl mx-auto px-4 sm:px-6">
 
           {/* Top bar */}
           <div className="flex items-center justify-between gap-4 py-3">
 
             {/* Logo */}
-            <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center glow-gold">
-                <Sun size={18} className="text-amber-400" />
+            <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+              <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center glow-gold flex-shrink-0">
+                <Sun size={16} className="text-amber-400" />
               </div>
-              <div>
-                <h1 className="font-display font-700 text-lg text-white tracking-widest leading-none">
-                  BITÁCORA SOLAR
+              <div className="min-w-0">
+                <h1 className="font-display font-700 text-base sm:text-lg text-[var(--c-text)] tracking-widest leading-none truncate">
+                  BITÁCORA <span className="hidden xs:inline">SOLAR</span>
                 </h1>
                 <p className="font-mono text-xs text-slate-500 hidden sm:block">Sistema de Registro Fotovoltaico</p>
               </div>
@@ -97,13 +114,13 @@ export default function Home() {
 
             {/* Stats */}
             <div className="hidden md:flex items-center gap-2">
-              <div className="flex items-center gap-1.5 bg-[#111827] border border-[#1E2A3A] rounded-xl px-3 py-1.5">
+              <div className="flex items-center gap-1.5 bg-[var(--c-inner)] border border-[var(--c-border-sub)] rounded-xl px-3 py-1.5">
                 <Activity size={11} className="text-green-400" />
                 <span className="font-mono text-xs text-slate-400">
-                  Total: <span className="text-white font-500">{registros.length}</span>
+                  Total: <span className="text-[var(--c-text)] font-500">{registros.length}</span>
                 </span>
               </div>
-              <div className="flex items-center gap-1.5 bg-[#111827] border border-[#1E2A3A] rounded-xl px-3 py-1.5">
+              <div className="flex items-center gap-1.5 bg-[var(--c-inner)] border border-[var(--c-border-sub)] rounded-xl px-3 py-1.5">
                 <Zap size={11} className="text-amber-400" />
                 <span className="font-mono text-xs text-slate-400">
                   Hoy: <span className="text-amber-400 font-500">{deHoy}</span>
@@ -119,46 +136,57 @@ export default function Home() {
               )}
             </div>
 
-            {/* Actions */}
-            {vista === 'bitacora' && (
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => setMostrarEscanear(true)}
-                  className="btn-ghost px-3 py-2 rounded-xl flex items-center gap-1.5 text-xs sm:text-sm"
-                >
-                  <BookOpen size={14} />
-                  <span className="hidden sm:inline">ESCANEAR</span>
-                </button>
-                <button
-                  onClick={() => setMostrarForm(true)}
-                  className="btn-primary px-3 py-2 rounded-xl flex items-center gap-1.5 text-xs sm:text-sm"
-                >
-                  <Plus size={14} />
-                  <span className="hidden sm:inline">NUEVO</span>
-                </button>
-              </div>
-            )}
-          </div>
+            {/* Theme toggle + Actions */}
+            <div className="flex items-center gap-2">
+              <button
+                onClick={toggleTema}
+                className="btn-ghost p-2 rounded-xl"
+                title={temaOscuro ? 'Modo claro' : 'Modo oscuro'}
+              >
+                {temaOscuro ? <Moon size={15} /> : <Sun size={15} />}
+              </button>
+              {vista === 'bitacora' && (
+                <>
+                  <button
+                    onClick={() => setMostrarEscanear(true)}
+                    className="btn-ghost px-3 py-2 rounded-xl flex items-center gap-1.5 text-xs sm:text-sm"
+                  >
+                    <BookOpen size={14} />
+                    <span className="hidden sm:inline">ESCANEAR</span>
+                  </button>
+                  <button
+                    onClick={() => setMostrarForm(true)}
+                    className="btn-primary px-3 py-2 rounded-xl flex items-center gap-1.5 text-xs sm:text-sm"
+                  >
+                    <Plus size={14} />
+                    <span className="hidden sm:inline">NUEVO</span>
+                  </button>
+                </>
+              )}
+            </div>
+
+          </div>{/* end top bar */}
 
           {/* ── NAV TABS ── */}
-          <div className="flex items-center gap-0">
+          <div className="flex items-center gap-0 overflow-x-auto scrollbar-none -mx-4 sm:mx-0 px-4 sm:px-0">
             {[
-              { key: 'bitacora', label: 'BITÁCORA', icon: <LayoutDashboard size={14} /> },
-              { key: 'informe', label: 'INFORMES', icon: <FileText size={14} /> },
-              { key: 'plantas', label: 'PLANTAS', icon: <Building2 size={14} /> },
-              { key: 'despachos', label: 'DESPACHOS', icon: <Truck size={14} /> },
-              { key: 'alertas', label: 'ALERTAS', icon: <Bell size={14} /> },
+              { key: 'bitacora', label: 'BITÁCORA', icon: <LayoutDashboard size={13} /> },
+              { key: 'informe', label: 'INFORMES', icon: <FileText size={13} /> },
+              { key: 'plantas', label: 'PLANTAS', icon: <Building2 size={13} /> },
+              { key: 'despachos', label: 'DESPACHOS', icon: <Truck size={13} /> },
+              { key: 'anydesk', label: 'ANYDESK', icon: <Monitor size={13} /> },
+              { key: 'alertas', label: 'ALERTAS', icon: <Bell size={13} /> },
             ].map(tab => (
               <button
                 key={tab.key}
                 onClick={() => setVista(tab.key as Vista)}
-                className={`flex items-center gap-2 px-5 py-2.5 text-xs sm:text-sm font-display font-600 tracking-wider border-b-2 transition-all ${vista === tab.key
+                className={`flex items-center gap-1.5 px-3 sm:px-5 py-2.5 text-xs font-display font-600 tracking-wider border-b-2 transition-all whitespace-nowrap flex-shrink-0 ${vista === tab.key
                     ? 'border-amber-400 text-amber-400'
-                    : 'border-transparent text-slate-500 hover:text-slate-300'
+                    : 'border-transparent text-slate-500 hover:text-[var(--c-text-2)]'
                   }`}
               >
                 {tab.icon}
-                {tab.label}
+                <span className="hidden xs:inline sm:inline">{tab.label}</span>
               </button>
             ))}
           </div>
@@ -167,7 +195,7 @@ export default function Home() {
       </header>
 
       {/* ── MAIN ── */}
-      <main className="max-w-6xl mx-auto px-4 sm:px-6 py-8">
+      <main className="max-w-6xl mx-auto px-3 sm:px-6 py-5 sm:py-8">
 
         {/* ── VISTA BITÁCORA ── */}
         {vista === 'bitacora' && (
@@ -178,7 +206,7 @@ export default function Home() {
                 onClick={() => setClienteFiltro('todos')}
                 className={`px-4 py-2 rounded-xl text-xs font-mono border transition-all ${clienteFiltro === 'todos'
                     ? 'bg-amber-500/15 border-amber-500/40 text-amber-400'
-                    : 'border-[#1E2A3A] text-slate-500 hover:border-amber-500/30 hover:text-amber-400'
+                    : 'border-[var(--c-border-sub)] text-slate-500 hover:border-amber-500/30 hover:text-amber-400'
                   }`}
               >
                 Todos ({registros.length})
@@ -234,7 +262,7 @@ export default function Home() {
 
             {!cargando && filtrados.length === 0 && (
               <div className="flex flex-col items-center justify-center py-24 gap-4">
-                <div className="w-16 h-16 rounded-2xl bg-[#111827] border border-[#1E2A3A] flex items-center justify-center">
+                <div className="w-16 h-16 rounded-2xl bg-[var(--c-inner)] border border-[var(--c-border-sub)] flex items-center justify-center">
                   <Sun size={30} className="text-slate-700" />
                 </div>
                 <div className="text-center">
@@ -288,6 +316,11 @@ export default function Home() {
         {/* ── VISTA DESPACHOS ── */}
         {vista === 'despachos' && (
           <GestionDespachos />
+        )}
+
+        {/* ── VISTA ANYDESK ── */}
+        {vista === 'anydesk' && (
+          <GestionAnyDesk />
         )}
 
         {/* ── VISTA ALERTAS ── */}

@@ -80,13 +80,13 @@ export default function GestionPlantas() {
     <div className="max-w-3xl mx-auto space-y-6">
 
       {/* Formulario agregar planta */}
-      <div className="bg-[#0D1321] border border-[#2A3F5A] rounded-2xl p-6">
+      <div className="bg-[var(--c-card)] border border-[var(--c-border)] rounded-2xl p-4 sm:p-6">
         <div className="flex items-center gap-3 mb-5">
           <div className="w-9 h-9 rounded-lg bg-amber-500/10 border border-amber-500/30 flex items-center justify-center">
             <Building2 size={18} className="text-amber-400" />
           </div>
           <div>
-            <h2 className="font-display font-700 text-lg text-white tracking-wide">AGREGAR PLANTA</h2>
+            <h2 className="font-display font-700 text-lg text-[var(--c-text)] tracking-wide">AGREGAR PLANTA</h2>
             <p className="text-xs text-slate-500">Las plantas se usarán en todos los registros</p>
           </div>
         </div>
@@ -109,7 +109,7 @@ export default function GestionPlantas() {
                     className={`py-3 px-4 rounded-xl border-2 transition-all flex items-center gap-3 ${
                       activo
                         ? `${col.bg} ${col.border} ${col.text}`
-                        : 'border-[#1E2A3A] text-slate-500 hover:border-slate-600'
+                        : 'border-[var(--c-border-sub)] text-slate-500 hover:border-slate-600'
                     }`}
                   >
                     <span className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${activo ? col.dot : 'bg-slate-700'}`} />
@@ -163,9 +163,9 @@ export default function GestionPlantas() {
       </div>
 
       {/* Lista de plantas por cliente */}
-      <div className="bg-[#0D1321] border border-[#2A3F5A] rounded-2xl p-6">
+      <div className="bg-[var(--c-card)] border border-[var(--c-border)] rounded-2xl p-4 sm:p-6">
         <div className="flex items-center justify-between mb-5">
-          <h2 className="font-display font-700 text-lg text-white tracking-wide flex items-center gap-2">
+          <h2 className="font-display font-700 text-lg text-[var(--c-text)] tracking-wide flex items-center gap-2">
             <Sun size={18} className="text-amber-400" />
             PLANTAS REGISTRADAS
           </h2>
@@ -208,11 +208,11 @@ export default function GestionPlantas() {
                   <div className="space-y-2 pl-2">
                     {lista.map(p => (
                       <div key={p.id}
-                        className="flex items-center justify-between bg-[#111827] border border-[#1E2A3A] rounded-xl px-4 py-3 group hover:border-slate-600 transition-all"
+                        className="flex items-center justify-between bg-[var(--c-inner)] border border-[var(--c-border-sub)] rounded-xl px-4 py-3 group hover:border-slate-600 transition-all"
                       >
                         <div className="flex items-center gap-3">
                           <div className={`w-1.5 h-6 rounded-full ${col.dot} opacity-60`} />
-                          <span className="text-white text-sm font-500">{p.nombre}</span>
+                          <span className="text-[var(--c-text)] text-sm font-500">{p.nombre}</span>
                         </div>
                         <button
                           onClick={() => handleEliminar(p.id!)}

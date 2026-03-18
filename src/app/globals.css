@@ -4,28 +4,61 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ── DARK MODE (default) ── */
 :root {
   --font-display: 'Rajdhani', sans-serif;
   --font-body: 'Inter', sans-serif;
   --font-mono: 'JetBrains Mono', monospace;
+
   --solar-gold: #F5A623;
   --solar-amber: #E8890C;
-  --solar-dark: #0A0E1A;
-  --solar-panel: #111827;
-  --solar-grid: #1E2A3A;
-  --solar-border: #2A3F5A;
   --solar-accent: #00D4FF;
   --solar-green: #22C55E;
   --solar-red: #EF4444;
+
+  /* Theme colors */
+  --c-bg:         #0A0E1A;
+  --c-card:       #0D1321;
+  --c-inner:      #111827;
+  --c-border-sub: #1E2A3A;
+  --c-border:     #2A3F5A;
+  --c-text:       #E2E8F0;
+  --c-text-2:     #CBD5E1;
+  --c-text-3:     #94A3B8;
+  --c-text-4:     #64748B;
+  --c-text-5:     #475569;
+
+  --c-grid-line:  rgba(0, 212, 255, 0.03);
+  --c-input-bg:   rgba(10, 14, 26, 0.8);
+  --c-card-grad:  linear-gradient(135deg, rgba(30,42,58,0.9) 0%, rgba(17,24,39,0.95) 100%);
+}
+
+/* ── LIGHT MODE ── */
+html[data-theme="light"] {
+  --c-bg:         #F0F4F8;
+  --c-card:       #FFFFFF;
+  --c-inner:      #F1F5F9;
+  --c-border-sub: #E2E8F0;
+  --c-border:     #CBD5E1;
+  --c-text:       #0F172A;
+  --c-text-2:     #1E293B;
+  --c-text-3:     #475569;
+  --c-text-4:     #64748B;
+  --c-text-5:     #94A3B8;
+
+  --c-grid-line:  rgba(0, 0, 0, 0.04);
+  --c-input-bg:   rgba(241, 245, 249, 0.9);
+  --c-card-grad:  linear-gradient(135deg, rgba(226,232,240,0.8) 0%, rgba(255,255,255,0.95) 100%);
 }
 
 * { box-sizing: border-box; }
 
 body {
   font-family: var(--font-body);
-  background-color: var(--solar-dark);
-  color: #E2E8F0;
+  background-color: var(--c-bg);
+  color: var(--c-text);
   min-height: 100vh;
+  transition: background-color 0.2s, color 0.2s;
 }
 
 .font-display { font-family: var(--font-display); }
@@ -33,9 +66,9 @@ body {
 
 /* Grid pattern background */
 .bg-grid {
-  background-image: 
-    linear-gradient(rgba(0, 212, 255, 0.03) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(0, 212, 255, 0.03) 1px, transparent 1px);
+  background-image:
+    linear-gradient(var(--c-grid-line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--c-grid-line) 1px, transparent 1px);
   background-size: 40px 40px;
 }
 
@@ -50,8 +83,8 @@ body {
 
 /* Card styles */
 .card-registro {
-  background: linear-gradient(135deg, rgba(30, 42, 58, 0.9) 0%, rgba(17, 24, 39, 0.95) 100%);
-  border: 1px solid var(--solar-border);
+  background: var(--c-card-grad);
+  border: 1px solid var(--c-border);
   transition: all 0.3s ease;
   position: relative;
   overflow: hidden;
@@ -74,14 +107,14 @@ body {
 .card-registro:hover {
   border-color: rgba(245, 166, 35, 0.4);
   transform: translateY(-2px);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4), 0 0 20px rgba(245, 166, 35, 0.1);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2), 0 0 20px rgba(245, 166, 35, 0.1);
 }
 
 /* Input styles */
 .input-solar {
-  background: rgba(10, 14, 26, 0.8);
-  border: 1px solid var(--solar-border);
-  color: #E2E8F0;
+  background: var(--c-input-bg);
+  border: 1px solid var(--c-border);
+  color: var(--c-text);
   transition: all 0.2s;
   font-family: var(--font-body);
 }
@@ -93,7 +126,7 @@ body {
 }
 
 .input-solar::placeholder {
-  color: #4A5568;
+  color: var(--c-text-5);
 }
 
 /* Button styles */
@@ -117,8 +150,8 @@ body {
 
 .btn-ghost {
   background: transparent;
-  border: 1px solid var(--solar-border);
-  color: #94A3B8;
+  border: 1px solid var(--c-border);
+  color: var(--c-text-3);
   transition: all 0.2s;
 }
 
@@ -153,10 +186,14 @@ body {
   letter-spacing: 0.05em;
 }
 
+/* Hide scrollbar utility */
+.scrollbar-none { scrollbar-width: none; }
+.scrollbar-none::-webkit-scrollbar { display: none; }
+
 /* Scrollbar */
 ::-webkit-scrollbar { width: 6px; }
-::-webkit-scrollbar-track { background: var(--solar-dark); }
-::-webkit-scrollbar-thumb { background: var(--solar-border); border-radius: 3px; }
+::-webkit-scrollbar-track { background: var(--c-bg); }
+::-webkit-scrollbar-thumb { background: var(--c-border); border-radius: 3px; }
 ::-webkit-scrollbar-thumb:hover { background: var(--solar-gold); }
 
 /* Animations */
@@ -189,11 +226,11 @@ body {
 
 /* Modal overlay */
 .modal-overlay {
-  background: rgba(0, 0, 0, 0.85);
+  background: rgba(0, 0, 0, 0.75);
   backdrop-filter: blur(4px);
 }
 
 select option {
-  background-color: #111827;
-  color: #E2E8F0;
+  background-color: var(--c-inner);
+  color: var(--c-text);
 }

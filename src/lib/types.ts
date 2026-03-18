@@ -32,7 +32,18 @@ export interface Despacho {
   cliente: Cliente;
   numero: string;
   fecha: string;
-  descripcion?: string;
+  alimentador?: string;
+  subestacion?: string;
+  direccion?: string;
+  createdAt?: number;
+}
+
+export interface AnyDesk {
+  id?: string;
+  planta: string;
+  cliente: Cliente;
+  nombre: string;
+  numero: string;
   createdAt?: number;
 }
 
