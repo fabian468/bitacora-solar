@@ -31,7 +31,6 @@ export interface Despacho {
   planta: string;
   cliente: Cliente;
   numero: string;
-  fecha: string;
   alimentador?: string;
   subestacion?: string;
   direccion?: string;
@@ -44,6 +43,20 @@ export interface AnyDesk {
   cliente: Cliente;
   nombre: string;
   numero: string;
+  createdAt?: number;
+}
+
+export type TipoInforme = 'diario' | 'turno';
+
+export interface InformeGuardado {
+  id?: string;
+  tipo: TipoInforme;
+  titulo: string;
+  contenido: string;
+  cliente: Cliente | 'todos';
+  fechaDesde: string;
+  fechaHasta: string;
+  totalEventos: number;
   createdAt?: number;
 }
 

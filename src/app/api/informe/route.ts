@@ -1,8 +1,89 @@
 // src/app/api/informe/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 
+type RegistroResumen = {
+  planta: string;
+  cliente: string;
+  acontecimiento: string;
+  causa: string;
+  detalle: string;
+  fechaInicio: string;
+  horaInicio: string;
+  fechaFin: string;
+  horaFin: string;
+  estado?: string;
+};
+
+function buildResumen(registros: RegistroResumen[]): string {
+  return registros.map((r, i) => `
+EVENTO ${i + 1}:
+- Planta: ${r.planta} (${r.cliente})
+- Acontecimiento: ${r.acontecimiento}
+- Causa: ${r.causa}
+- Detalle: ${r.detalle || 'Sin detalle'}
+- Inicio: ${r.fechaInicio} ${r.horaInicio}
+- Fin: ${r.fechaFin} ${r.horaFin}
+- Estado: ${r.estado || 'pendiente'}
+`).join('\n---\n');
+}
+
+function promptDiario(resumen: string, desde: string, hasta: string): string {
+  return `Eres un asistente técnico de plantas fotovoltaicas. Se te dan los eventos del período ${desde} al ${hasta}.
+
+REGISTROS:
+${resumen}
+
+Genera un RESUMEN OPERACIONAL DEL DÍA en español con esta estructura exacta:
+
+# RESUMEN DEL DÍA
+**Período:** ${desde} al ${hasta}
+
+## ESTADO OPERACIONAL
+[1-2 párrafos: ¿cómo estuvo el día? ¿las plantas operaron con normalidad? ¿hubo incidentes graves?]
+
+## EVENTOS DEL PERÍODO
+[Lista cada evento con: planta, acontecimiento, estado (✓ resuelto / ⏳ pendiente) y duración si aplica]
+
+## PENDIENTES ACTIVOS
+[Solo los eventos aún pendientes. Si no hay, escribe "Sin eventos pendientes."]
+
+## OBSERVACIONES
+[1-2 notas técnicas relevantes sobre lo ocurrido: equipos repetitivos, horas críticas, etc.]
+
+Sé directo y técnico. No inventes datos.`;
+}
+
+function promptTurno(resumen: string, desde: string, hasta: string): string {
+  return `Eres un técnico de turno en plantas fotovoltaicas. Necesitas generar un reporte para entregarle el turno al operador que entra.
+
+EVENTOS DEL TURNO (${desde} al ${hasta}):
+${resumen}
+
+Genera un REPORTE DE ENTREGA DE TURNO en español con esta estructura exacta:
+
+# ENTREGA DE TURNO
+**Turno:** ${desde} al ${hasta}
+
+## NOVEDADES DEL TURNO
+[Describe brevemente qué ocurrió durante el turno. 2-3 oraciones claras, en primera persona como si lo estuviera contando el operador saliente]
+
+## ACCIONES REALIZADAS
+[Lista las acciones concretas que se tomaron: qué se hizo, en qué planta, con qué resultado]
+
+## PENDIENTE PARA EL PRÓXIMO TURNO
+[Lista SOLO los eventos que quedaron sin resolver, con planta y estado actual. Si no hay, escribe "Sin pendientes."]
+
+## EQUIPOS A VIGILAR
+[Menciona equipos o plantas que requieren atención especial, basado en los eventos del turno]
+
+## RECOMENDACIONES PARA EL TURNO ENTRANTE
+[2-3 puntos concretos de lo que debe priorizar o revisar el operador que entra]
+
+Usa lenguaje directo, como lo hablaría un técnico a otro técnico. Sin rodeos.`;
+}
+
 export async function POST(req: NextRequest) {
-  const { registros, fechaDesde, fechaHasta } = await req.json();
+  const { registros, fechaDesde, fechaHasta, tipoInforme = 'diario' } = await req.json();
 
   if (!registros || registros.length === 0) {
     return NextResponse.json({ error: 'No hay registros para el período' }, { status: 400 });
@@ -13,56 +94,10 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'GROQ_API_KEY no configurada' }, { status: 500 });
   }
 
-  // Construir resumen de registros para el prompt
-  const resumenRegistros = registros.map((r: {
-    planta: string;
-    acontecimiento: string;
-    causa: string;
-    detalle: string;
-    fechaInicio: string;
-    horaInicio: string;
-    fechaFin: string;
-    horaFin: string;
-    estado?: string;
-  }, i: number) => `
-EVENTO ${i + 1}:
-- Planta: ${r.planta}
-- Acontecimiento: ${r.acontecimiento}
-- Causa: ${r.causa}
-- Detalle: ${r.detalle || 'Sin detalle'}
-- Inicio: ${r.fechaInicio} ${r.horaInicio}
-- Fin: ${r.fechaFin} ${r.horaFin}
-- Estado: ${r.estado || 'pendiente'}
-`).join('\n---\n');
-
-  const prompt = `Eres un asistente técnico especializado en plantas fotovoltaicas (solares). 
-Se te entrega el registro de eventos de una o más plantas entre el ${fechaDesde} y el ${fechaHasta}.
-
-REGISTROS DEL PERÍODO:
-${resumenRegistros}
-
-Genera un INFORME OPERACIONAL PROFESIONAL en español con la siguiente estructura exacta:
-
-# INFORME OPERACIONAL
-**Período:** ${fechaDesde} al ${fechaHasta}
-**Total de eventos:** [número]
-
-## RESUMEN EJECUTIVO
-[2-3 párrafos describiendo el comportamiento general del período, los eventos más relevantes y el estado operacional de las plantas]
-
-## EVENTOS PENDIENTES
-[Lista de todos los eventos con estado "pendiente", indicando planta, acontecimiento y tiempo transcurrido. Si no hay pendientes, indica "Sin eventos pendientes en el período."]
-
-## EVENTOS RESUELTOS
-[Lista resumida de eventos resueltos con su duración]
-
-## ANÁLISIS Y PATRONES
-[Identifica si hay equipos o plantas con fallas repetidas, horas críticas, causas recurrentes]
-
-## RECOMENDACIONES
-[2-3 recomendaciones técnicas concretas basadas en los eventos del período]
-
-Usa lenguaje técnico profesional. Sé conciso pero completo. No inventes datos que no estén en los registros.`;
+  const resumen = buildResumen(registros);
+  const prompt = tipoInforme === 'turno'
+    ? promptTurno(resumen, fechaDesde, fechaHasta)
+    : promptDiario(resumen, fechaDesde, fechaHasta);
 
   try {
     const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
