@@ -145,7 +145,7 @@ export default function GestionAnyDesk() {
 
   // Agrupar por cliente → planta
   const grupos = CLIENTES.flatMap(c => {
-    const plantasCliente = [...new Set(listaFiltrada.filter(a => a.cliente === c).map(a => a.planta))];
+    const plantasCliente = Array.from(new Set(listaFiltrada.filter(a => a.cliente === c).map(a => a.planta)));
     return plantasCliente.map(p => ({
       cliente: c,
       planta: p,

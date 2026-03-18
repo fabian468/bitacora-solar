@@ -5,7 +5,8 @@
       "Bash(do)",
       "Bash(sed -i -e 's/bg-\\\\[#0D1321\\\\]/bg-[var\\(--c-card\\)]/g' -e 's/bg-\\\\[#111827\\\\]/bg-[var\\(--c-inner\\)]/g' -e 's/bg-\\\\[#0A0E1A\\\\]/bg-[var\\(--c-bg\\)]/g' -e 's/border-\\\\[#1E2A3A\\\\]/border-[var\\(--c-border-sub\\)]/g' -e 's/border-\\\\[#2A3F5A\\\\]/border-[var\\(--c-border\\)]/g' \"$f\")",
       "Bash(done)",
-      "Bash(cd:*)"
+      "Bash(cd:*)",
+      "Bash(npx tsc:*)"
     ]
   }
 }
