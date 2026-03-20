@@ -1,0 +1,478 @@
+'use client';
+
+import { useState, useRef } from 'react';
+import { Moon, Zap, FileSpreadsheet, Upload, X, Download, Loader2 } from 'lucide-react';
+
+// ── Parsers ──
+
+const COLS_FORMATO = [4, 5, 6, 7];
+
+function parseLDP(text: string): { headers: string[]; rows: string[][] } | null {
+  const lines = text.split('\n');
+  const headerIdx = lines.findIndex(l => l.trim().startsWith('Record, Date, Time, Status'));
+  if (headerIdx === -1) return null;
+  const headers = lines[headerIdx].split(',').map(h => h.trim().replace(/"/g, ''));
+  const rows: string[][] = [];
+  for (let i = headerIdx + 1; i < lines.length; i++) {
+    const line = lines[i].trim();
+    if (!line) continue;
+    const cols = line.split(',').map(c => c.trim().replace(/"/g, ''));
+    if (cols.length < 5) continue;
+    rows.push(cols);
+  }
+  return { headers, rows };
+}
+
+function parseMeter(text: string): { headers: string[]; rows: string[][] } | null {
+  const lines = text.split('\n').filter(l => l.trim());
+  if (lines.length < 2) return null;
+  const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
+  const rows = lines.slice(1).map(line =>
+    line.split(',').map(c => c.trim().replace(/"/g, ''))
+  ).filter(row => row.length >= 2);
+  return { headers, rows };
+}
+
+// ── Lógica LDP1 ──
+
+function reordenarColumnas(row: (string | number)[]): (string | number)[] {
+  return [row[0], row[1], row[2], row[3], row[6], row[7], row[5], row[4]];
+}
+
+function filtrarPorReferencia(rows: string[][], ref1: string, ref2: string, cantidad: number): string[][] | null {
+  const v1 = Math.round(parseFloat(ref1));
+  const v2 = Math.round(parseFloat(ref2));
+  const idx = rows.findIndex(row =>
+    row.some(cell => Math.round(parseFloat(cell)) === v1) &&
+    row.some(cell => Math.round(parseFloat(cell)) === v2)
+  );
+  if (idx === -1) return null;
+  const resultado = rows.slice(idx + 1, idx + 1 + cantidad);
+  return resultado.length > 0 ? resultado : null;
+}
+
+async function descargarLDP1(rows: string[][], headers: string[], archivo: File, ref1: string, ref2: string) {
+  const XLSX = await import('xlsx');
+  const filtradas = filtrarPorReferencia(rows, ref1, ref2, 96);
+  if (!filtradas) throw new Error(`No se encontró fila con valores ${ref1} y ${ref2}.`);
+
+  const dataFormateada = filtradas.map(row =>
+    reordenarColumnas(
+      row.map((cell, colIdx) =>
+        COLS_FORMATO.includes(colIdx) ? parseFloat(cell) || 0 : cell
+      )
+    )
+  );
+  const headersReordenados = reordenarColumnas(headers);
+  const ws = XLSX.utils.aoa_to_sheet([headersReordenados, ...dataFormateada]);
+
+  const range = XLSX.utils.decode_range(ws['!ref'] || 'A1');
+  for (let R = 1; R <= range.e.r; R++) {
+    for (const C of COLS_FORMATO) {
+      const cellAddr = XLSX.utils.encode_cell({ r: R, c: C });
+      if (ws[cellAddr]) { ws[cellAddr].t = 'n'; ws[cellAddr].z = '#,##0;-#,##0'; }
+    }
+  }
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Registros');
+  XLSX.writeFile(wb, `${archivo.name.replace(/\.[^.]+$/, '')}_energia_real_ldp1.xlsx`);
+}
+
+// ── Lógica Meter Hanqwa (2 decimales) ──
+
+async function descargarMeterHanqwa(rows: string[][], headers: string[], archivo: File, ref1: string, ref2: string) {
+  const XLSX = await import('xlsx');
+  const filtradas = filtrarPorReferencia(rows, ref1, ref2, 96);
+  if (!filtradas) throw new Error(`No se encontró fila con valores ${ref1} y ${ref2}.`);
+
+  const dataFormateada = filtradas.map(row =>
+    row.slice(0, 8).map((cell, i) => {
+      if (i === 0) return reformatearFecha(cell);
+      return parseFloat(cell) || 0;
+    })
+  );
+
+  const ws = XLSX.utils.aoa_to_sheet([headers.slice(0, 8), ...dataFormateada]);
+
+  const range = XLSX.utils.decode_range(ws['!ref'] || 'A1');
+  for (let R = 1; R <= range.e.r; R++) {
+    for (let C = 1; C <= 7; C++) {
+      const cellAddr = XLSX.utils.encode_cell({ r: R, c: C });
+      if (ws[cellAddr]) { ws[cellAddr].t = 'n'; ws[cellAddr].z = '#,##0.00;-#,##0.00'; }
+    }
+  }
+
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Registros');
+  XLSX.writeFile(wb, `${archivo.name.replace(/\.[^.]+$/, '')}_meter_hanqwa.xlsx`);
+}
+
+// ── Lógica CEN Hanqwa (Meter + eliminar columnas C-H) ──
+
+async function descargarCENHanqwa(rows: string[][], headers: string[], archivo: File, ref1: string, ref2: string) {
+  const XLSX = await import('xlsx');
+  const filtradas = filtrarPorReferencia(rows, ref1, ref2, 96);
+  if (!filtradas) throw new Error(`No se encontró fila con valores ${ref1} y ${ref2}.`);
+
+  // Solo columnas A y B (índices 0 y 1), eliminar C-H
+  const dataFormateada = filtradas.map(row => {
+    const fecha = reformatearFecha(row[0] || '');
+    const kwh = parseFloat(row[1]) || 0;
+    return [fecha, kwh, null]; // col C vacía por defecto
+  });
+
+  const ws = XLSX.utils.aoa_to_sheet([[headers[0], headers[1], 'kWh hora'], ...dataFormateada]);
+
+  const range = XLSX.utils.decode_range(ws['!ref'] || 'A1');
+
+  // Formato col B
+  for (let R = 1; R <= range.e.r; R++) {
+    const cellAddr = XLSX.utils.encode_cell({ r: R, c: 1 });
+    if (ws[cellAddr]) { ws[cellAddr].t = 'n'; ws[cellAddr].z = '#,##0.00;-#,##0.00'; }
+  }
+
+  // Fórmula horaria en col C: cada 4 filas (grupos de 15min = 1h)
+  // i es índice 0-based en dataFormateada; hoja: fila = i+2 (1-indexed)
+  for (let i = 3; i < dataFormateada.length; i += 4) {
+    const sheetRow = i + 2; // fila Excel 1-indexed
+    const startRow = sheetRow - 3;
+    const cellAddr = XLSX.utils.encode_cell({ r: i + 1, c: 2 });
+    ws[cellAddr] = { t: 'n', f: `SUM(B${startRow}:B${sheetRow})/1000`, z: '#,##0.00;-#,##0.00' };
+  }
+
+  // Actualizar rango del sheet
+  ws['!ref'] = XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: range.e.r, c: 2 } });
+
+  // AutoFilter en columna C
+  ws['!autofilter'] = { ref: `A1:C${dataFormateada.length + 1}` };
+
+  // Ocultar filas sin valor en C (solo mostrar filas horarias)
+  const rowsProps: { hidden?: boolean }[] = [{}]; // fila header visible
+  for (let i = 0; i < dataFormateada.length; i++) {
+    const esHoraria = (i + 1) % 4 === 0;
+    rowsProps.push(esHoraria ? {} : { hidden: true });
+  }
+  ws['!rows'] = rowsProps;
+
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Registros');
+  XLSX.writeFile(wb, `${archivo.name.replace(/\.[^.]+$/, '')}_cen_hanqwa.xlsx`);
+}
+
+// ── Lógica LDP2 ──
+
+async function descargarLDP2(rows: string[][], headers: string[], archivo: File, ref1: string, ref2: string) {
+  const XLSX = await import('xlsx');
+  const filtradas = filtrarPorReferencia(rows, ref1, ref2, 96);
+  if (!filtradas) throw new Error(`No se encontró fila con valores ${ref1} y ${ref2}.`);
+
+  // Columnas A-G (índices 0-6), suprimir H en adelante
+  const dataFormateada = filtradas.map(row =>
+    row.slice(0, 7).map((cell, i) =>
+      i >= 4 ? parseFloat(cell) || 0 : cell
+    )
+  );
+
+  const ws = XLSX.utils.aoa_to_sheet([headers.slice(0, 7), ...dataFormateada]);
+
+  const range = XLSX.utils.decode_range(ws['!ref'] || 'A1');
+  for (let R = 1; R <= range.e.r; R++) {
+    for (let C = 4; C <= 6; C++) {
+      const cellAddr = XLSX.utils.encode_cell({ r: R, c: C });
+      if (ws[cellAddr]) { ws[cellAddr].t = 'n'; ws[cellAddr].z = '#,##0;-#,##0'; }
+    }
+  }
+
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Registros');
+  XLSX.writeFile(wb, `${archivo.name.replace(/\.[^.]+$/, '')}_energia_real_ldp2.xlsx`);
+}
+
+// ── Lógica Meter ──
+
+function reformatearFecha(dateStr: string): string {
+  // "3/18/2026 3:45:00.000 AM" → "3/18/2026 3:45"
+  const partes = dateStr.trim().split(' ');
+  if (partes.length < 2) return dateStr;
+  const fecha = partes[0];
+  const hora = partes[1].split(':').slice(0, 2).join(':');
+  return `${fecha} ${hora}`;
+}
+
+async function descargarMeter(rows: string[][], headers: string[], archivo: File, ref1: string, ref2: string) {
+  const XLSX = await import('xlsx');
+
+  // Filtrar 144 filas desde la siguiente a la referencia (3:15 → 15:00 día siguiente)
+  const filtradas = filtrarPorReferencia(rows, ref1, ref2, 96);
+  if (!filtradas) throw new Error(`No se encontró fila con valores ${ref1} y ${ref2}.`);
+
+  // Columnas A-H (índices 0-7), suprimir I-M (8-12)
+  const dataFormateada = filtradas.map(row =>
+    row.slice(0, 8).map((cell, i) => {
+      if (i === 0) return reformatearFecha(cell);
+      return parseFloat(cell) || 0;
+    })
+  );
+
+  const ws = XLSX.utils.aoa_to_sheet([headers.slice(0, 8), ...dataFormateada]);
+
+  // Aplicar formato número a columnas B-H (índices 1-7)
+  const range = XLSX.utils.decode_range(ws['!ref'] || 'A1');
+  for (let R = 1; R <= range.e.r; R++) {
+    for (let C = 1; C <= 7; C++) {
+      const cellAddr = XLSX.utils.encode_cell({ r: R, c: C });
+      if (ws[cellAddr]) { ws[cellAddr].t = 'n'; ws[cellAddr].z = '#,##0;-#,##0'; }
+    }
+  }
+
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Registros');
+  XLSX.writeFile(wb, `${archivo.name.replace(/\.[^.]+$/, '')}_meter_formateado.xlsx`);
+}
+
+// ── Card reutilizable ──
+
+interface CardInformeProps {
+  titulo: string;
+  subtitulo: string;
+  labelBtn: string;
+  parser: (text: string) => { headers: string[]; rows: string[][] } | null;
+  sinReferencias?: boolean;
+  onDescargar: (rows: string[][], headers: string[], archivo: File, ref1: string, ref2: string) => Promise<void>;
+  labelBtn2?: string;
+  onDescargar2?: (rows: string[][], headers: string[], archivo: File, ref1: string, ref2: string) => Promise<void>;
+}
+
+function CardInforme({ titulo, subtitulo, labelBtn, parser, sinReferencias, onDescargar, labelBtn2, onDescargar2 }: CardInformeProps) {
+  const [archivo, setArchivo] = useState<File | null>(null);
+  const [datos, setDatos] = useState<{ headers: string[]; rows: string[][] } | null>(null);
+  const [error, setError] = useState('');
+  const [procesando, setProcesando] = useState(false);
+  const [ref1, setRef1] = useState('');
+  const [ref2, setRef2] = useState('');
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  const handleArchivo = async (file: File | null) => {
+    setArchivo(file);
+    setDatos(null);
+    setError('');
+    if (!file) return;
+    setProcesando(true);
+    try {
+      const text = await file.text();
+      const resultado = parser(text);
+      if (!resultado) setError('No se pudo leer la sección de registros.');
+      else setDatos(resultado);
+    } catch {
+      setError('Error al leer el archivo.');
+    } finally {
+      setProcesando(false);
+    }
+  };
+
+  const handleDescargar = async () => {
+    if (!datos || !archivo) return;
+    setError('');
+    setProcesando(true);
+    try {
+      await onDescargar(datos.rows, datos.headers, archivo, ref1, ref2);
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'Error al generar el archivo.');
+    } finally {
+      setProcesando(false);
+    }
+  };
+
+  const faltanRefs = !sinReferencias && (!ref1 || !ref2);
+
+  return (
+    <div className="card-solar rounded-xl p-4">
+      {/* Header */}
+      <div className="flex items-center gap-2 mb-4">
+        <div className="w-7 h-7 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center justify-center flex-shrink-0">
+          <Zap size={13} className="text-amber-400" />
+        </div>
+        <div>
+          <h3 className="font-display font-700 text-xs tracking-wider text-[var(--c-text)]">{titulo}</h3>
+          <p className="font-mono text-[10px] text-slate-500">{subtitulo}</p>
+        </div>
+      </div>
+
+      {/* Input archivo */}
+      <div
+        onClick={() => fileRef.current?.click()}
+        className={`flex items-center justify-between gap-3 px-3 py-2.5 rounded-lg border-2 cursor-pointer transition-all mb-3
+          ${archivo ? 'bg-green-500/10 border-green-500/30' : 'border-dashed border-[var(--c-border-sub)] hover:border-amber-500/40'}`}
+      >
+        <div className="flex items-center gap-2 min-w-0">
+          <FileSpreadsheet size={14} className={archivo ? 'text-green-400 flex-shrink-0' : 'text-slate-500 flex-shrink-0'} />
+          <p className={`font-mono text-xs truncate ${archivo ? 'text-green-400' : 'text-slate-400'}`}>
+            {archivo ? archivo.name : 'Seleccionar archivo'}
+          </p>
+        </div>
+        {archivo ? (
+          <button
+            onClick={e => { e.stopPropagation(); handleArchivo(null); if (fileRef.current) fileRef.current.value = ''; }}
+            className="p-1 rounded hover:bg-red-500/20 text-slate-500 hover:text-red-400 transition-colors flex-shrink-0"
+          >
+            <X size={12} />
+          </button>
+        ) : (
+          <Upload size={13} className="text-slate-600 flex-shrink-0" />
+        )}
+        <input ref={fileRef} type="file" accept=".csv,.xlsx,.xls" className="hidden"
+          onChange={e => handleArchivo(e.target.files?.[0] ?? null)} />
+      </div>
+
+      {/* Referencias (solo si aplica) */}
+      {!sinReferencias && (
+        <div className="grid grid-cols-2 gap-2 mb-3">
+          <div className="flex flex-col gap-1">
+            <label className="font-mono text-[10px] text-slate-500 uppercase tracking-wider">Ref. 1</label>
+            <input type="number" value={ref1} onChange={e => setRef1(e.target.value)}
+              placeholder="0" className="input-solar rounded-lg px-3 py-2 text-xs font-mono" />
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className="font-mono text-[10px] text-slate-500 uppercase tracking-wider">Ref. 2</label>
+            <input type="number" value={ref2} onChange={e => setRef2(e.target.value)}
+              placeholder="0" className="input-solar rounded-lg px-3 py-2 text-xs font-mono" />
+          </div>
+        </div>
+      )}
+
+      {/* Alerta error */}
+      {error && (
+        <div className="flex items-start gap-2 bg-red-500/10 border border-red-500/30 rounded-lg px-3 py-2 mb-3">
+          <span className="text-red-400 text-sm leading-none">⚠</span>
+          <p className="font-mono text-[10px] text-red-400">{error}</p>
+        </div>
+      )}
+
+      {/* Aviso refs faltantes */}
+      {datos && faltanRefs && (
+        <p className="font-mono text-[10px] text-amber-400 mb-2">
+          Ingresa los dos valores de referencia para descargar.
+        </p>
+      )}
+
+      {/* Botones */}
+      {datos && (
+        <div className="flex flex-col gap-2">
+          <button
+            onClick={handleDescargar}
+            disabled={procesando || faltanRefs}
+            className="btn-primary w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-xs font-mono disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            {procesando ? <Loader2 size={12} className="animate-spin" /> : <Download size={12} />}
+            {labelBtn}
+          </button>
+          {labelBtn2 && onDescargar2 && (
+            <button
+              onClick={async () => {
+                if (!datos || !archivo) return;
+                setError('');
+                setProcesando(true);
+                try { await onDescargar2(datos.rows, datos.headers, archivo, ref1, ref2); }
+                catch (e: unknown) { setError(e instanceof Error ? e.message : 'Error al generar el archivo.'); }
+                finally { setProcesando(false); }
+              }}
+              disabled={procesando || faltanRefs}
+              className="btn-ghost w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-xs font-mono border border-[var(--c-border-sub)] disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              {procesando ? <Loader2 size={12} className="animate-spin" /> : <Download size={12} />}
+              {labelBtn2}
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Página principal ──
+
+export default function InformesNocturnos() {
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center gap-3">
+        <Moon size={16} className="text-indigo-400" />
+        <h2 className="font-display font-700 text-base tracking-wider text-[var(--c-text)]">
+          INFORMES NOCTURNOS
+        </h2>
+      </div>
+
+      {/* Grupo: El Pelicano Noche */}
+      <div className="border border-[var(--c-border-sub)] rounded-2xl p-4">
+        <div className="flex items-center gap-2 mb-4">
+          <span className="w-2 h-2 rounded-full bg-amber-400" />
+          <h3 className="font-display font-600 text-xs tracking-widest text-slate-400 uppercase">
+            Informes El Pelicano — Noche
+          </h3>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <CardInforme
+            titulo="ENERGÍA REAL METER EL PELICANO"
+            subtitulo="Energía del CEN"
+            labelBtn="Descargar Excel con Energía Real Meter"
+            parser={parseMeter}
+            onDescargar={descargarMeter}
+          />
+          <CardInforme
+            titulo="ENERGÍA REAL LDP1 EL PELICANO"
+            subtitulo="Energía del CEN"
+            labelBtn="Descargar Excel con Energía Real LDP1"
+            parser={parseLDP}
+            onDescargar={descargarLDP1}
+          />
+          <CardInforme
+            titulo="ENERGÍA REAL LDP2 EL PELICANO"
+            subtitulo="Energía del CEN"
+            labelBtn="Descargar Excel con Energía Real LDP2"
+            parser={parseLDP}
+            onDescargar={descargarLDP2}
+          />
+        </div>
+      </div>
+
+      {/* Grupo: Hanqwa */}
+      <div className="border border-[var(--c-border-sub)] rounded-2xl p-4">
+        <div className="flex items-center gap-2 mb-4">
+          <span className="w-2 h-2 rounded-full bg-cyan-400" />
+          <h3 className="font-display font-600 text-xs tracking-widest text-slate-400 uppercase">
+            Informes Hanqwa
+          </h3>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <CardInforme
+            titulo="ENERGÍA REAL METER SOL DEL NORTE - HANQWA"
+            subtitulo="Energía del CEN"
+            labelBtn="Descargar Excel con Energía Real Meter"
+            labelBtn2="Energía Real para el CEN"
+            parser={parseMeter}
+            onDescargar={descargarMeterHanqwa}
+            onDescargar2={descargarCENHanqwa}
+          />
+          <CardInforme
+            titulo="ENERGÍA REAL METER DESIERTO - HANQWA"
+            subtitulo="Energía del CEN"
+            labelBtn="Descargar Excel con Energía Real Meter"
+            labelBtn2="Energía Real para el CEN"
+            parser={parseMeter}
+            onDescargar={descargarMeterHanqwa}
+            onDescargar2={descargarCENHanqwa}
+          />
+          <CardInforme
+            titulo="ENERGÍA REAL METER LOS ANDES - HANQWA"
+            subtitulo="Energía del CEN"
+            labelBtn="Descargar Excel con Energía Real Meter"
+            labelBtn2="Energía Real para el CEN"
+            parser={parseMeter}
+            onDescargar={descargarMeterHanqwa}
+            onDescargar2={descargarCENHanqwa}
+          />
+        </div>
+      </div>
+
+    </div>
+  );
+}

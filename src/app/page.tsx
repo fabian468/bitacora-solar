@@ -12,13 +12,14 @@ import GestionPlantas from '@/components/GestionPlantas';
 import GestionDespachos from '@/components/GestionDespachos';
 import GestionAnyDesk from '@/components/GestionAnyDesk';
 import ConfigTelegram from '@/components/ConfigTelegram';
+import InformesNocturnos from '@/components/InformesNocturnos';
 import {
   Sun, Plus, RefreshCw, Search, Zap, Activity,
   BookOpen, FileText, LayoutDashboard, Building2, Bell, Truck, Monitor,
   Moon, Calendar, X
 } from 'lucide-react';
 
-type Vista = 'bitacora' | 'informe' | 'plantas' | 'despachos' | 'anydesk' | 'alertas';
+type Vista = 'bitacora' | 'informe' | 'plantas' | 'despachos' | 'anydesk' | 'alertas' | 'nocturnos';
 
 const CLIENTE_COLORES: Record<Cliente, { activo: string; inactivo: string; dot: string }> = {
   'Carbon Free': {
@@ -189,6 +190,7 @@ export default function Home() {
               { key: 'despachos', label: 'DESPACHOS', icon: <Truck size={13} /> },
               { key: 'anydesk', label: 'ANYDESK', icon: <Monitor size={13} /> },
               { key: 'alertas', label: 'ALERTAS', icon: <Bell size={13} /> },
+              { key: 'nocturnos', label: 'NOCTURNOS', icon: <Moon size={13} /> },
             ].map(tab => (
               <button
                 key={tab.key}
@@ -389,6 +391,11 @@ export default function Home() {
         {/* ── VISTA ALERTAS ── */}
         {vista === 'alertas' && (
           <ConfigTelegram />
+        )}
+
+        {/* ── VISTA NOCTURNOS ── */}
+        {vista === 'nocturnos' && (
+          <InformesNocturnos />
         )}
 
       </main>

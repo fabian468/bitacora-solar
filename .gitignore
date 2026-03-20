@@ -1,10 +1,12 @@
 node_modules
-.env.local
-
-.next
-dist
-
 node_modules/
-.next/
 .env.local
+.next
+.next/
+dist
 dist/
+
+# Excel y CSV
+*.xlsx
+*.xls
+*.csv
