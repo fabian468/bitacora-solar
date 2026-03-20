@@ -159,6 +159,52 @@ async function descargarCENHanqwa(rows: string[][], headers: string[], archivo: 
   XLSX.writeFile(wb, `${archivo.name.replace(/\.[^.]+$/, '')}_cen_hanqwa.xlsx`);
 }
 
+// ── Lógica CEN Luz del Norte (columna D para energía) ──
+
+async function descargarCENLuzDelNorte(rows: string[][], headers: string[], archivo: File, ref1: string, ref2: string) {
+  const XLSX = await import('xlsx');
+  const filtradas = filtrarPorReferencia(rows, ref1, ref2, 96);
+  if (!filtradas) throw new Error(`No se encontró fila con valores ${ref1} y ${ref2}.`);
+
+  // Col A (fecha) y col D (índice 3, kWh rec int)
+  const dataFormateada = filtradas.map(row => {
+    const fecha = reformatearFecha(row[0] || '');
+    const kwh = parseFloat(row[3]) || 0;
+    return [fecha, kwh, null];
+  });
+
+  const ws = XLSX.utils.aoa_to_sheet([[headers[0], headers[3], 'kWh hora'], ...dataFormateada]);
+
+  const range = XLSX.utils.decode_range(ws['!ref'] || 'A1');
+
+  // Formato col B
+  for (let R = 1; R <= range.e.r; R++) {
+    const cellAddr = XLSX.utils.encode_cell({ r: R, c: 1 });
+    if (ws[cellAddr]) { ws[cellAddr].t = 'n'; ws[cellAddr].z = '#,##0.00;-#,##0.00'; }
+  }
+
+  // Fórmula horaria en col C cada 4 filas
+  for (let i = 3; i < dataFormateada.length; i += 4) {
+    const sheetRow = i + 2;
+    const startRow = sheetRow - 3;
+    const cellAddr = XLSX.utils.encode_cell({ r: i + 1, c: 2 });
+    ws[cellAddr] = { t: 'n', f: `SUM(B${startRow}:B${sheetRow})/1000`, z: '#,##0.00;-#,##0.00' };
+  }
+
+  ws['!ref'] = XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: range.e.r, c: 2 } });
+  ws['!autofilter'] = { ref: `A1:C${dataFormateada.length + 1}` };
+
+  const rowsProps: { hidden?: boolean }[] = [{}];
+  for (let i = 0; i < dataFormateada.length; i++) {
+    rowsProps.push((i + 1) % 4 === 0 ? {} : { hidden: true });
+  }
+  ws['!rows'] = rowsProps;
+
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Registros');
+  XLSX.writeFile(wb, `${archivo.name.replace(/\.[^.]+$/, '')}_cen_luz_del_norte.xlsx`);
+}
+
 // ── Lógica LDP2 ──
 
 async function descargarLDP2(rows: string[][], headers: string[], archivo: File, ref1: string, ref2: string) {
@@ -469,6 +515,27 @@ export default function InformesNocturnos() {
             parser={parseMeter}
             onDescargar={descargarMeterHanqwa}
             onDescargar2={descargarCENHanqwa}
+          />
+        </div>
+      </div>
+
+      {/* Grupo: Luz del Norte */}
+      <div className="border border-[var(--c-border-sub)] rounded-2xl p-4">
+        <div className="flex items-center gap-2 mb-4">
+          <span className="w-2 h-2 rounded-full bg-green-400" />
+          <h3 className="font-display font-600 text-xs tracking-widest text-slate-400 uppercase">
+            Informes Luz del Norte
+          </h3>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <CardInforme
+            titulo="ENERGÍA REAL LUZ DEL NORTE"
+            subtitulo="Energía del CEN"
+            labelBtn="Descargar Excel con Energía Real Meter"
+            labelBtn2="Energía Real para el CEN"
+            parser={parseMeter}
+            onDescargar={descargarMeterHanqwa}
+            onDescargar2={descargarCENLuzDelNorte}
           />
         </div>
       </div>
