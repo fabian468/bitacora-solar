@@ -687,6 +687,9 @@ video {
 .max-h-\[95vh\]{
   max-height: 95vh;
 }
+.max-h-40{
+  max-height: 10rem;
+}
 .min-h-screen{
   min-height: 100vh;
 }
@@ -904,6 +907,9 @@ video {
 }
 .whitespace-nowrap{
   white-space: nowrap;
+}
+.whitespace-pre-line{
+  white-space: pre-line;
 }
 .break-all{
   word-break: break-all;
@@ -1138,6 +1144,10 @@ video {
 .bg-violet-500\/15{
   background-color: rgb(139 92 246 / 0.15);
 }
+.bg-violet-400{
+  --tw-bg-opacity: 1;
+  background-color: rgb(167 139 250 / var(--tw-bg-opacity, 1));
+}
 .object-contain{
   -o-object-fit: contain;
      object-fit: contain;
@@ -1165,6 +1175,9 @@ video {
 }
 .p-8{
   padding: 2rem;
+}
+.p-0\.5{
+  padding: 0.125rem;
 }
 .px-1\.5{
   padding-left: 0.375rem;

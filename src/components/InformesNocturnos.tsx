@@ -237,12 +237,20 @@ async function descargarLDP2(rows: string[][], headers: string[], archivo: File,
 // ── Lógica Meter ──
 
 function reformatearFecha(dateStr: string): string {
-  // "3/18/2026 3:45:00.000 AM" → "3/18/2026 3:45"
+  // "3/18/2026 3:45:00.000 AM" → "3/18/2026 03:45" (24h)
   const partes = dateStr.trim().split(' ');
   if (partes.length < 2) return dateStr;
   const fecha = partes[0];
-  const hora = partes[1].split(':').slice(0, 2).join(':');
-  return `${fecha} ${hora}`;
+  const [hStr, mStr] = partes[1].split(':');
+  const meridiem = partes[2]?.toUpperCase();
+  let h = parseInt(hStr, 10);
+  const m = mStr?.padStart(2, '0') ?? '00';
+  if (meridiem === 'AM') {
+    if (h === 12) h = 0;
+  } else if (meridiem === 'PM') {
+    if (h !== 12) h += 12;
+  }
+  return `${fecha} ${String(h).padStart(2, '0')}:${m}`;
 }
 
 async function descargarMeter(rows: string[][], headers: string[], archivo: File, ref1: string, ref2: string) {
@@ -274,6 +282,251 @@ async function descargarMeter(rows: string[][], headers: string[], archivo: File
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, 'Registros');
   XLSX.writeFile(wb, `${archivo.name.replace(/\.[^.]+$/, '')}_meter_formateado.xlsx`);
+}
+
+// ── Lógica Carbon Free (sin filtrado por referencia) ──
+
+async function descargarMeterCarbonFree(rows: string[][], headers: string[], archivo: File) {
+  const XLSX = await import('xlsx');
+
+  const dataFormateada = rows.map(row =>
+    row.slice(0, 8).map((cell, i) => {
+      if (i === 0) return reformatearFecha(cell);
+      return parseFloat(cell) || 0;
+    })
+  );
+
+  const ws = XLSX.utils.aoa_to_sheet([headers.slice(0, 8), ...dataFormateada]);
+
+  const range = XLSX.utils.decode_range(ws['!ref'] || 'A1');
+  for (let R = 1; R <= range.e.r; R++) {
+    for (let C = 1; C <= 7; C++) {
+      const cellAddr = XLSX.utils.encode_cell({ r: R, c: C });
+      if (ws[cellAddr]) { ws[cellAddr].t = 'n'; ws[cellAddr].z = '#,##0.00;-#,##0.00'; }
+    }
+  }
+
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Registros');
+  XLSX.writeFile(wb, `${archivo.name.replace(/\.[^.]+$/, '')}_meter.xlsx`);
+}
+
+async function descargarCENCarbonFree(rows: string[][], headers: string[], archivo: File) {
+  const XLSX = await import('xlsx');
+
+  const dataFormateada = rows.map(row => {
+    const fecha = reformatearFecha(row[0] || '');
+    const kwh = parseFloat(row[1]) || 0;
+    return [fecha, kwh, null];
+  });
+
+  const ws = XLSX.utils.aoa_to_sheet([[headers[0], headers[1], 'kWh hora'], ...dataFormateada]);
+
+  const range = XLSX.utils.decode_range(ws['!ref'] || 'A1');
+
+  for (let R = 1; R <= range.e.r; R++) {
+    const cellAddr = XLSX.utils.encode_cell({ r: R, c: 1 });
+    if (ws[cellAddr]) { ws[cellAddr].t = 'n'; ws[cellAddr].z = '#,##0.00;-#,##0.00'; }
+  }
+
+  for (let i = 3; i < dataFormateada.length; i += 4) {
+    const sheetRow = i + 2;
+    const startRow = sheetRow - 3;
+    const cellAddr = XLSX.utils.encode_cell({ r: i + 1, c: 2 });
+    ws[cellAddr] = { t: 'n', f: `SUM(B${startRow}:B${sheetRow})/1000`, z: '#,##0.00;-#,##0.00' };
+  }
+
+  ws['!ref'] = XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: range.e.r, c: 2 } });
+  ws['!autofilter'] = { ref: `A1:C${dataFormateada.length + 1}` };
+
+  const rowsProps: { hidden?: boolean }[] = [{}];
+  for (let i = 0; i < dataFormateada.length; i++) {
+    rowsProps.push((i + 1) % 4 === 0 ? {} : { hidden: true });
+  }
+  ws['!rows'] = rowsProps;
+
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Registros');
+  XLSX.writeFile(wb, `${archivo.name.replace(/\.[^.]+$/, '')}_cen.xlsx`);
+}
+
+// ── Card multi-archivo (Carbon Free) ──
+
+interface ArchivoItem {
+  file: File;
+  datos: { headers: string[]; rows: string[][] } | null;
+  error: string;
+}
+
+interface CardInformeMultiProps {
+  titulo: string;
+  subtitulo: string;
+  labelBtn: string;
+  labelBtn2: string;
+  parser: (text: string) => { headers: string[]; rows: string[][] } | null;
+  sinReferencias?: boolean;
+  onDescargar: (rows: string[][], headers: string[], archivo: File, ref1: string, ref2: string) => Promise<void>;
+  onDescargar2: (rows: string[][], headers: string[], archivo: File, ref1: string, ref2: string) => Promise<void>;
+  onDescargarSinRef?: (rows: string[][], headers: string[], archivo: File) => Promise<void>;
+  onDescargar2SinRef?: (rows: string[][], headers: string[], archivo: File) => Promise<void>;
+}
+
+function CardInformeMulti({ titulo, subtitulo, labelBtn, labelBtn2, parser, sinReferencias, onDescargar, onDescargar2, onDescargarSinRef, onDescargar2SinRef }: CardInformeMultiProps) {
+  const [archivos, setArchivos] = useState<ArchivoItem[]>([]);
+  const [ref1, setRef1] = useState('');
+  const [ref2, setRef2] = useState('');
+  const [procesando, setProcesando] = useState(false);
+  const [errorGlobal, setErrorGlobal] = useState('');
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  const agregarArchivos = async (nuevos: FileList | null) => {
+    if (!nuevos) return;
+    const items: ArchivoItem[] = [];
+    for (const file of Array.from(nuevos)) {
+      try {
+        const text = await file.text();
+        const datos = parser(text);
+        items.push({ file, datos, error: datos ? '' : 'No se pudo leer la sección de registros.' });
+      } catch {
+        items.push({ file, datos: null, error: 'Error al leer el archivo.' });
+      }
+    }
+    setArchivos(prev => [...prev, ...items]);
+    if (fileRef.current) fileRef.current.value = '';
+  };
+
+  const quitarArchivo = (idx: number) => setArchivos(prev => prev.filter((_, i) => i !== idx));
+
+  const ejecutarTodos = async (
+    fn: (rows: string[][], headers: string[], archivo: File, ref1: string, ref2: string) => Promise<void>,
+    fnSinRef?: (rows: string[][], headers: string[], archivo: File) => Promise<void>
+  ) => {
+    setErrorGlobal('');
+    setProcesando(true);
+    const errores: string[] = [];
+    for (const item of archivos) {
+      if (!item.datos) { errores.push(`${item.file.name}: sin datos.`); continue; }
+      try {
+        if (sinReferencias && fnSinRef) await fnSinRef(item.datos.rows, item.datos.headers, item.file);
+        else await fn(item.datos.rows, item.datos.headers, item.file, ref1, ref2);
+      } catch (e: unknown) { errores.push(`${item.file.name}: ${e instanceof Error ? e.message : 'Error.'}`); }
+    }
+    if (errores.length) setErrorGlobal(errores.join('\n'));
+    setProcesando(false);
+  };
+
+  const faltanRefs = !sinReferencias && (!ref1 || !ref2);
+  const hayArchivosValidos = archivos.some(a => a.datos !== null);
+
+  return (
+    <div className="card-solar rounded-xl p-4">
+      {/* Header */}
+      <div className="flex items-center gap-2 mb-4">
+        <div className="w-7 h-7 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center justify-center flex-shrink-0">
+          <Zap size={13} className="text-amber-400" />
+        </div>
+        <div>
+          <h3 className="font-display font-700 text-xs tracking-wider text-[var(--c-text)]">{titulo}</h3>
+          <p className="font-mono text-[10px] text-slate-500">{subtitulo}</p>
+        </div>
+      </div>
+
+      {/* Zona de carga */}
+      <div className="flex gap-2 mb-3">
+        <div
+          onClick={() => fileRef.current?.click()}
+          className="flex-1 flex items-center justify-between gap-3 px-3 py-2.5 rounded-lg border-2 border-dashed border-[var(--c-border-sub)] hover:border-amber-500/40 cursor-pointer transition-all"
+        >
+          <div className="flex items-center gap-2">
+            <FileSpreadsheet size={14} className="text-slate-500 flex-shrink-0" />
+            <p className="font-mono text-xs text-slate-400">Agregar archivos</p>
+          </div>
+          <Upload size={13} className="text-slate-600 flex-shrink-0" />
+          <input ref={fileRef} type="file" accept=".csv,.xlsx,.xls" multiple className="hidden"
+            onChange={e => agregarArchivos(e.target.files)} />
+        </div>
+        {archivos.length > 0 && (
+          <button
+            onClick={() => { setArchivos([]); setErrorGlobal(''); }}
+            className="px-3 py-2 rounded-lg border border-red-500/30 bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-colors font-mono text-xs flex items-center gap-1.5 flex-shrink-0"
+          >
+            <X size={12} />
+            Limpiar
+          </button>
+        )}
+      </div>
+
+      {/* Lista de archivos */}
+      {archivos.length > 0 && (
+        <div className="flex flex-col gap-1.5 mb-3 max-h-40 overflow-y-auto pr-1">
+          {archivos.map((item, idx) => (
+            <div key={idx} className={`flex items-center justify-between gap-2 px-3 py-1.5 rounded-lg border ${item.datos ? 'bg-green-500/10 border-green-500/30' : 'bg-red-500/10 border-red-500/30'}`}>
+              <div className="flex items-center gap-2 min-w-0">
+                <FileSpreadsheet size={12} className={item.datos ? 'text-green-400 flex-shrink-0' : 'text-red-400 flex-shrink-0'} />
+                <p className={`font-mono text-[10px] truncate ${item.datos ? 'text-green-400' : 'text-red-400'}`}>{item.file.name}</p>
+              </div>
+              <button onClick={() => quitarArchivo(idx)} className="p-0.5 rounded hover:bg-red-500/20 text-slate-500 hover:text-red-400 transition-colors flex-shrink-0">
+                <X size={11} />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Referencias */}
+      {!sinReferencias && (
+        <div className="grid grid-cols-2 gap-2 mb-3">
+          <div className="flex flex-col gap-1">
+            <label className="font-mono text-[10px] text-slate-500 uppercase tracking-wider">Ref. 1</label>
+            <input type="number" value={ref1} onChange={e => setRef1(e.target.value)}
+              placeholder="0" className="input-solar rounded-lg px-3 py-2 text-xs font-mono" />
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className="font-mono text-[10px] text-slate-500 uppercase tracking-wider">Ref. 2</label>
+            <input type="number" value={ref2} onChange={e => setRef2(e.target.value)}
+              placeholder="0" className="input-solar rounded-lg px-3 py-2 text-xs font-mono" />
+          </div>
+        </div>
+      )}
+
+      {/* Error global */}
+      {errorGlobal && (
+        <div className="flex items-start gap-2 bg-red-500/10 border border-red-500/30 rounded-lg px-3 py-2 mb-3">
+          <span className="text-red-400 text-sm leading-none">⚠</span>
+          <p className="font-mono text-[10px] text-red-400 whitespace-pre-line">{errorGlobal}</p>
+        </div>
+      )}
+
+      {/* Aviso refs faltantes */}
+      {hayArchivosValidos && faltanRefs && (
+        <p className="font-mono text-[10px] text-amber-400 mb-2">
+          Ingresa los dos valores de referencia para descargar.
+        </p>
+      )}
+
+      {/* Botones */}
+      {hayArchivosValidos && (
+        <div className="flex flex-col gap-2">
+          <button
+            onClick={() => ejecutarTodos(onDescargar, onDescargarSinRef)}
+            disabled={procesando || faltanRefs}
+            className="btn-primary w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-xs font-mono disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            {procesando ? <Loader2 size={12} className="animate-spin" /> : <Download size={12} />}
+            {labelBtn} {archivos.filter(a => a.datos).length > 1 ? `(${archivos.filter(a => a.datos).length} archivos)` : ''}
+          </button>
+          <button
+            onClick={() => ejecutarTodos(onDescargar2, onDescargar2SinRef)}
+            disabled={procesando || faltanRefs}
+            className="btn-ghost w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-xs font-mono border border-[var(--c-border-sub)] disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            {procesando ? <Loader2 size={12} className="animate-spin" /> : <Download size={12} />}
+            {labelBtn2} {archivos.filter(a => a.datos).length > 1 ? `(${archivos.filter(a => a.datos).length} archivos)` : ''}
+          </button>
+        </div>
+      )}
+    </div>
+  );
 }
 
 // ── Card reutilizable ──
@@ -536,6 +789,30 @@ export default function InformesNocturnos() {
             parser={parseMeter}
             onDescargar={descargarMeterHanqwa}
             onDescargar2={descargarCENLuzDelNorte}
+          />
+        </div>
+      </div>
+
+      {/* Grupo: Carbon Free */}
+      <div className="border border-[var(--c-border-sub)] rounded-2xl p-4">
+        <div className="flex items-center gap-2 mb-4">
+          <span className="w-2 h-2 rounded-full bg-violet-400" />
+          <h3 className="font-display font-600 text-xs tracking-widest text-slate-400 uppercase">
+            Informes Carbon Free
+          </h3>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <CardInformeMulti
+            titulo="ENERGÍA REAL METER — CARBON FREE"
+            subtitulo="Procesamiento multi-archivo"
+            labelBtn="Descargar Excel con Energía Real Meter"
+            labelBtn2="Energía Real para el CEN"
+            parser={parseMeter}
+            sinReferencias
+            onDescargar={descargarMeterHanqwa}
+            onDescargar2={descargarCENHanqwa}
+            onDescargarSinRef={descargarMeterCarbonFree}
+            onDescargar2SinRef={descargarCENCarbonFree}
           />
         </div>
       </div>
