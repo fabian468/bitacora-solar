@@ -33,6 +33,24 @@ function parseMeter(text: string): { headers: string[]; rows: string[][] } | nul
   return { headers, rows };
 }
 
+// ── Helper: aplica fuente 11 a todas las celdas ──
+
+type XLSXUtils = { decode_range: (r: string) => { s: { r: number; c: number }; e: { r: number; c: number } }; encode_cell: (a: { r: number; c: number }) => string };
+
+function aplicarFuente11(ws: Record<string, unknown>, utils: XLSXUtils) {
+  const ref = (ws as Record<string, string>)['!ref'];
+  if (!ref) return;
+  const decoded = utils.decode_range(ref);
+  for (let R = decoded.s.r; R <= decoded.e.r; R++) {
+    for (let C = decoded.s.c; C <= decoded.e.c; C++) {
+      const addr = utils.encode_cell({ r: R, c: C });
+      const cell = ws[addr] as { z?: string; s?: object } | undefined;
+      if (!cell) continue;
+      cell.s = { font: { sz: 11 }, ...(cell.z ? { numFmt: cell.z } : {}) };
+    }
+  }
+}
+
 // ── Lógica LDP1 ──
 
 function reordenarColumnas(row: (string | number)[]): (string | number)[] {
@@ -52,7 +70,7 @@ function filtrarPorReferencia(rows: string[][], ref1: string, ref2: string, cant
 }
 
 async function descargarLDP1(rows: string[][], headers: string[], archivo: File, ref1: string, ref2: string) {
-  const XLSX = await import('xlsx');
+  const XLSX = await import('xlsx-js-style');
   const filtradas = filtrarPorReferencia(rows, ref1, ref2, 96);
   if (!filtradas) throw new Error(`No se encontró fila con valores ${ref1} y ${ref2}.`);
 
@@ -73,15 +91,16 @@ async function descargarLDP1(rows: string[][], headers: string[], archivo: File,
       if (ws[cellAddr]) { ws[cellAddr].t = 'n'; ws[cellAddr].z = '#,##0;-#,##0'; }
     }
   }
+  aplicarFuente11(ws as Record<string, unknown>, XLSX.utils);
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, 'Registros');
-  XLSX.writeFile(wb, `${archivo.name.replace(/\.[^.]+$/, '')}_energia_real_ldp1.xlsx`);
+  XLSX.writeFile(wb, `${archivo.name.replace(/\.[^.]+$/, '')}_energia_real_ldp1.xlsx`, { cellStyles: true });
 }
 
 // ── Lógica Meter Hanqwa (2 decimales) ──
 
 async function descargarMeterHanqwa(rows: string[][], headers: string[], archivo: File, ref1: string, ref2: string) {
-  const XLSX = await import('xlsx');
+  const XLSX = await import('xlsx-js-style');
   const filtradas = filtrarPorReferencia(rows, ref1, ref2, 96);
   if (!filtradas) throw new Error(`No se encontró fila con valores ${ref1} y ${ref2}.`);
 
@@ -102,15 +121,16 @@ async function descargarMeterHanqwa(rows: string[][], headers: string[], archivo
     }
   }
 
+  aplicarFuente11(ws as Record<string, unknown>, XLSX.utils);
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, 'Registros');
-  XLSX.writeFile(wb, `${archivo.name.replace(/\.[^.]+$/, '')}_meter_hanqwa.xlsx`);
+  XLSX.writeFile(wb, `${archivo.name.replace(/\.[^.]+$/, '')}_meter_hanqwa.xlsx`, { cellStyles: true });
 }
 
 // ── Lógica CEN Hanqwa (Meter + eliminar columnas C-H) ──
 
 async function descargarCENHanqwa(rows: string[][], headers: string[], archivo: File, ref1: string, ref2: string) {
-  const XLSX = await import('xlsx');
+  const XLSX = await import('xlsx-js-style');
   const filtradas = filtrarPorReferencia(rows, ref1, ref2, 96);
   if (!filtradas) throw new Error(`No se encontró fila con valores ${ref1} y ${ref2}.`);
 
@@ -154,15 +174,16 @@ async function descargarCENHanqwa(rows: string[][], headers: string[], archivo: 
   }
   ws['!rows'] = rowsProps;
 
+  aplicarFuente11(ws as Record<string, unknown>, XLSX.utils);
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, 'Registros');
-  XLSX.writeFile(wb, `${archivo.name.replace(/\.[^.]+$/, '')}_cen_hanqwa.xlsx`);
+  XLSX.writeFile(wb, `${archivo.name.replace(/\.[^.]+$/, '')}_cen_hanqwa.xlsx`, { cellStyles: true });
 }
 
 // ── Lógica CEN Luz del Norte (columna D para energía) ──
 
 async function descargarCENLuzDelNorte(rows: string[][], headers: string[], archivo: File, ref1: string, ref2: string) {
-  const XLSX = await import('xlsx');
+  const XLSX = await import('xlsx-js-style');
   const filtradas = filtrarPorReferencia(rows, ref1, ref2, 96);
   if (!filtradas) throw new Error(`No se encontró fila con valores ${ref1} y ${ref2}.`);
 
@@ -200,15 +221,16 @@ async function descargarCENLuzDelNorte(rows: string[][], headers: string[], arch
   }
   ws['!rows'] = rowsProps;
 
+  aplicarFuente11(ws as Record<string, unknown>, XLSX.utils);
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, 'Registros');
-  XLSX.writeFile(wb, `${archivo.name.replace(/\.[^.]+$/, '')}_cen_luz_del_norte.xlsx`);
+  XLSX.writeFile(wb, `${archivo.name.replace(/\.[^.]+$/, '')}_cen_luz_del_norte.xlsx`, { cellStyles: true });
 }
 
 // ── Lógica LDP2 ──
 
 async function descargarLDP2(rows: string[][], headers: string[], archivo: File, ref1: string, ref2: string) {
-  const XLSX = await import('xlsx');
+  const XLSX = await import('xlsx-js-style');
   const filtradas = filtrarPorReferencia(rows, ref1, ref2, 96);
   if (!filtradas) throw new Error(`No se encontró fila con valores ${ref1} y ${ref2}.`);
 
@@ -229,9 +251,10 @@ async function descargarLDP2(rows: string[][], headers: string[], archivo: File,
     }
   }
 
+  aplicarFuente11(ws as Record<string, unknown>, XLSX.utils);
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, 'Registros');
-  XLSX.writeFile(wb, `${archivo.name.replace(/\.[^.]+$/, '')}_energia_real_ldp2.xlsx`);
+  XLSX.writeFile(wb, `${archivo.name.replace(/\.[^.]+$/, '')}_energia_real_ldp2.xlsx`, { cellStyles: true });
 }
 
 // ── Lógica Meter ──
@@ -254,7 +277,7 @@ function reformatearFecha(dateStr: string): string {
 }
 
 async function descargarMeter(rows: string[][], headers: string[], archivo: File, ref1: string, ref2: string) {
-  const XLSX = await import('xlsx');
+  const XLSX = await import('xlsx-js-style');
 
   // Filtrar 144 filas desde la siguiente a la referencia (3:15 → 15:00 día siguiente)
   const filtradas = filtrarPorReferencia(rows, ref1, ref2, 96);
@@ -279,15 +302,16 @@ async function descargarMeter(rows: string[][], headers: string[], archivo: File
     }
   }
 
+  aplicarFuente11(ws as Record<string, unknown>, XLSX.utils);
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, 'Registros');
-  XLSX.writeFile(wb, `${archivo.name.replace(/\.[^.]+$/, '')}_meter_formateado.xlsx`);
+  XLSX.writeFile(wb, `${archivo.name.replace(/\.[^.]+$/, '')}_meter_formateado.xlsx`, { cellStyles: true });
 }
 
 // ── Lógica Carbon Free (sin filtrado por referencia) ──
 
 async function descargarMeterCarbonFree(rows: string[][], headers: string[], archivo: File) {
-  const XLSX = await import('xlsx');
+  const XLSX = await import('xlsx-js-style');
 
   const dataFormateada = rows.map(row =>
     row.slice(0, 8).map((cell, i) => {
@@ -306,13 +330,14 @@ async function descargarMeterCarbonFree(rows: string[][], headers: string[], arc
     }
   }
 
+  aplicarFuente11(ws as Record<string, unknown>, XLSX.utils);
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, 'Registros');
-  XLSX.writeFile(wb, `${archivo.name.replace(/\.[^.]+$/, '')}_meter.xlsx`);
+  XLSX.writeFile(wb, `${archivo.name.replace(/\.[^.]+$/, '')}_meter.xlsx`, { cellStyles: true });
 }
 
 async function descargarCENCarbonFree(rows: string[][], headers: string[], archivo: File) {
-  const XLSX = await import('xlsx');
+  const XLSX = await import('xlsx-js-style');
 
   const dataFormateada = rows.map(row => {
     const fecha = reformatearFecha(row[0] || '');
@@ -345,9 +370,10 @@ async function descargarCENCarbonFree(rows: string[][], headers: string[], archi
   }
   ws['!rows'] = rowsProps;
 
+  aplicarFuente11(ws as Record<string, unknown>, XLSX.utils);
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, 'Registros');
-  XLSX.writeFile(wb, `${archivo.name.replace(/\.[^.]+$/, '')}_cen.xlsx`);
+  XLSX.writeFile(wb, `${archivo.name.replace(/\.[^.]+$/, '')}_cen.xlsx`, { cellStyles: true });
 }
 
 // ── Card multi-archivo (Carbon Free) ──
