@@ -227,6 +227,55 @@ async function descargarCENLuzDelNorte(rows: string[][], headers: string[], arch
   XLSX.writeFile(wb, `${archivo.name.replace(/\.[^.]+$/, '')}_cen_luz_del_norte.xlsx`, { cellStyles: true });
 }
 
+// ── Lógica CEN LDP1 El Pelicano (columna E tras reordenar = original[6]) ──
+
+async function descargarCENLDP1Pelicano(rows: string[][], headers: string[], archivo: File, ref1: string, ref2: string) {
+  const XLSX = await import('xlsx-js-style');
+  const filtradas = filtrarPorReferencia(rows, ref1, ref2, 96);
+  if (!filtradas) throw new Error(`No se encontró fila con valores ${ref1} y ${ref2}.`);
+
+  // Reordenar igual que LDP1 y tomar col E (índice 4 = original[6])
+  const dataFormateada = filtradas.map(row => {
+    const reordenada = reordenarColumnas(
+      row.map((cell, colIdx) => COLS_FORMATO.includes(colIdx) ? parseFloat(cell) || 0 : cell)
+    );
+    const fecha = `${row[1]} ${row[2]}`; // Date + Time del LDP
+    const kwh = reordenada[4] as number;  // col E tras reordenar
+    return [fecha, kwh, null];
+  });
+
+  const headersReordenados = reordenarColumnas(headers);
+  const ws = XLSX.utils.aoa_to_sheet([[headers[1] || 'Fecha', String(headersReordenados[4]) || 'kWh', 'kWh hora'], ...dataFormateada]);
+
+  const range = XLSX.utils.decode_range(ws['!ref'] || 'A1');
+
+  for (let R = 1; R <= range.e.r; R++) {
+    const cellAddr = XLSX.utils.encode_cell({ r: R, c: 1 });
+    if (ws[cellAddr]) { ws[cellAddr].t = 'n'; ws[cellAddr].z = '#,##0.00;-#,##0.00'; }
+  }
+
+  for (let i = 3; i < dataFormateada.length; i += 4) {
+    const sheetRow = i + 2;
+    const startRow = sheetRow - 3;
+    const cellAddr = XLSX.utils.encode_cell({ r: i + 1, c: 2 });
+    ws[cellAddr] = { t: 'n', f: `SUM(B${startRow}:B${sheetRow})/1000`, z: '#,##0.00;-#,##0.00' };
+  }
+
+  ws['!ref'] = XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: range.e.r, c: 2 } });
+  ws['!autofilter'] = { ref: `A1:C${dataFormateada.length + 1}` };
+
+  const rowsProps: { hidden?: boolean }[] = [{}];
+  for (let i = 0; i < dataFormateada.length; i++) {
+    rowsProps.push((i + 1) % 4 === 0 ? {} : { hidden: true });
+  }
+  ws['!rows'] = rowsProps;
+
+  aplicarFuente11(ws as Record<string, unknown>, XLSX.utils);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Registros');
+  XLSX.writeFile(wb, `${archivo.name.replace(/\.[^.]+$/, '')}_cen_ldp1_pelicano.xlsx`, { cellStyles: true });
+}
+
 // ── Lógica LDP2 ──
 
 async function descargarLDP2(rows: string[][], headers: string[], archivo: File, ref1: string, ref2: string) {
@@ -746,8 +795,10 @@ export default function InformesNocturnos() {
             titulo="ENERGÍA REAL LDP1 EL PELICANO"
             subtitulo="Energía del CEN"
             labelBtn="Descargar Excel con Energía Real LDP1"
+            labelBtn2="Energía Real para el CEN"
             parser={parseLDP}
             onDescargar={descargarLDP1}
+            onDescargar2={descargarCENLDP1Pelicano}
           />
           <CardInforme
             titulo="ENERGÍA REAL LDP2 EL PELICANO"

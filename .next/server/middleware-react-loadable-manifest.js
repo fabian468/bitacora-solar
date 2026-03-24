@@ -1,1 +1,1 @@
-self.__REACT_LOADABLE_MANIFEST="{\"components\\\\InformesNocturnos.tsx -> xlsx\":{\"id\":\"components\\\\InformesNocturnos.tsx -> xlsx\",\"files\":[\"static/chunks/_app-pages-browser_node_modules_xlsx_xlsx_mjs.js\"]}}"
+self.__REACT_LOADABLE_MANIFEST="{\"components\\\\InformesNocturnos.tsx -> xlsx-js-style\":{\"id\":\"components\\\\InformesNocturnos.tsx -> xlsx-js-style\",\"files\":[\"static/chunks/_app-pages-browser_node_modules_xlsx-js-style_dist_xlsx_min_js.js\"]}}"
