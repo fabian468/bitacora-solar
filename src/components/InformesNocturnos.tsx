@@ -180,6 +180,61 @@ async function descargarCENHanqwa(rows: string[][], headers: string[], archivo: 
   XLSX.writeFile(wb, `${archivo.name.replace(/\.[^.]+$/, '')}_cen_hanqwa.xlsx`, { cellStyles: true });
 }
 
+// ── Lógica Irradiancia Luz del Norte (Daily Report) ──
+
+function parseIrradianciaLDN(text: string): { headers: string[]; rows: string[][] } | null {
+  const lines = text.split('\n').filter(l => l.trim());
+  if (lines.length < 2) return null;
+  const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
+  const rows = lines.slice(1).map(line =>
+    line.split(',').map(c => c.trim().replace(/"/g, ''))
+  ).filter(row => row.length >= 2);
+  return { headers, rows };
+}
+
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+async function descargarIrradianciaLDN(rows: string[][], headers: string[], archivo: File, _ref1: string, _ref2: string) {
+  const XLSX = await import('xlsx-js-style');
+
+  // TODO: definir columnas exactas según el Excel de irradiancia
+  const dataFormateada = rows.map(row =>
+    row.slice(0, headers.length).map((cell, i) => {
+      if (i === 0) return reformatearFecha(cell);
+      const n = parseFloat(cell);
+      return isNaN(n) ? cell : n;
+    })
+  );
+  const ws = XLSX.utils.aoa_to_sheet([headers, ...dataFormateada]);
+  aplicarFuente11(ws as Record<string, unknown>, XLSX.utils);
+
+  // Colorear en amarillo las filas donde col A contiene "01:00"
+  const range = XLSX.utils.decode_range(ws['!ref'] || 'A1');
+  for (let R = 1; R <= range.e.r; R++) {
+    const celda = ws[XLSX.utils.encode_cell({ r: R, c: 0 })] as { v?: unknown; s?: Record<string, unknown> } | undefined;
+    if (typeof celda?.v === 'string' && celda.v.includes('01:15')) {
+      for (let C = 0; C <= range.e.c; C++) {
+        const addr = XLSX.utils.encode_cell({ r: R, c: C });
+        const cell = ws[addr] as { s?: Record<string, unknown> } | undefined;
+        if (cell) cell.s = { ...(cell.s ?? {}), fill: { fgColor: { rgb: 'FFFF00' } } };
+        else ws[addr] = { t: 'z', s: { fill: { fgColor: { rgb: 'FFFF00' } } } };
+      }
+      // Promedio B:F en columna G de esta fila
+      const excelRow = R + 1;
+      const addrG = XLSX.utils.encode_cell({ r: R, c: 6 });
+      ws[addrG] = { t: 'n', f: `AVERAGE(B${excelRow}:F${excelRow})`, s: { fill: { fgColor: { rgb: 'FFFF00' } }, font: { sz: 11 } } };
+      // Ampliar el rango del sheet si col G queda fuera
+      if (range.e.c < 6) {
+        range.e.c = 6;
+        ws['!ref'] = XLSX.utils.encode_range(range);
+      }
+    }
+  }
+
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Registros');
+  XLSX.writeFile(wb, `${archivo.name.replace(/\.[^.]+$/, '')}_irradiancia_ldnorte.xlsx`, { cellStyles: true });
+}
+
 // ── Lógica CEN Luz del Norte (columna D para energía) ──
 
 async function descargarCENLuzDelNorte(rows: string[][], headers: string[], archivo: File, ref1: string, ref2: string) {
@@ -866,6 +921,14 @@ export default function InformesNocturnos() {
             parser={parseMeter}
             onDescargar={descargarMeterHanqwa}
             onDescargar2={descargarCENLuzDelNorte}
+          />
+          <CardInforme
+            titulo="IRRADIANCIA DEL DÍA LUZ DEL NORTE"
+            subtitulo="Daily Report"
+            labelBtn="Descargar Excel Irradiancia"
+            sinReferencias
+            parser={parseIrradianciaLDN}
+            onDescargar={descargarIrradianciaLDN}
           />
         </div>
       </div>
