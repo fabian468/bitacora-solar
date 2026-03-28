@@ -4,6 +4,8 @@ import { useState, useEffect, useCallback } from 'react';
 import { obtenerRegistros } from '@/lib/bitacora';
 import { obtenerPlantas } from '@/lib/plantas';
 import { RegistroBitacora, Planta, Cliente, CLIENTES } from '@/lib/types';
+import { useAuth } from '@/context/AuthContext';
+import Login from '@/components/Login';
 import CardRegistro from '@/components/CardRegistro';
 import FormularioRegistro from '@/components/FormularioRegistro';
 import EscanearCuaderno from '@/components/EscanearCuaderno';
@@ -13,13 +15,15 @@ import GestionDespachos from '@/components/GestionDespachos';
 import GestionAnyDesk from '@/components/GestionAnyDesk';
 import ConfigTelegram from '@/components/ConfigTelegram';
 import InformesNocturnos from '@/components/InformesNocturnos';
+import GestionUsuarios from '@/components/GestionUsuarios';
+import FichasTecnicas from '@/components/FichasTecnicas';
 import {
   Sun, Plus, RefreshCw, Search, Zap, Activity,
   BookOpen, FileText, LayoutDashboard, Building2, Bell, Truck, Monitor,
-  Moon, Calendar, X
+  Moon, X, Users, LogOut, ShieldCheck, ClipboardList, Star
 } from 'lucide-react';
 
-type Vista = 'bitacora' | 'informe' | 'plantas' | 'despachos' | 'anydesk' | 'alertas' | 'nocturnos';
+type Vista = 'bitacora' | 'informe' | 'plantas' | 'despachos' | 'anydesk' | 'alertas' | 'nocturnos' | 'usuarios' | 'fichas';
 
 const CLIENTE_COLORES: Record<Cliente, { activo: string; inactivo: string; dot: string }> = {
   'Carbon Free': {
@@ -35,9 +39,12 @@ const CLIENTE_COLORES: Record<Cliente, { activo: string; inactivo: string; dot: 
 };
 
 export default function Home() {
+  const { usuario, cargandoAuth, cerrarSesion } = useAuth();
+
   const [registros, setRegistros] = useState<RegistroBitacora[]>([]);
   const [plantas, setPlantas] = useState<Planta[]>([]);
   const [vista, setVista] = useState<Vista>('bitacora');
+  const [vistaInicio, setVistaInicio] = useState<Vista>('bitacora');
   const [clienteFiltro, setClienteFiltro] = useState<Cliente | 'todos'>('todos');
   const [fechaDesde, setFechaDesde] = useState('');
   const [fechaHasta, setFechaHasta] = useState('');
@@ -54,6 +61,10 @@ export default function Home() {
     const oscuro = guardado !== 'light';
     setTemaOscuro(oscuro);
     document.documentElement.setAttribute('data-theme', oscuro ? 'dark' : 'light');
+
+    const inicio = (localStorage.getItem('vistaInicio') as Vista) ?? 'bitacora';
+    setVistaInicio(inicio);
+    setVista(inicio);
   }, []);
 
   const toggleTema = () => {
@@ -77,7 +88,9 @@ export default function Home() {
     }
   }, []);
 
-  useEffect(() => { cargar(); }, [cargar]);
+  useEffect(() => {
+    if (usuario) cargar();
+  }, [usuario, cargar]);
 
   // Filtros combinados
   const filtrados = registros.filter(r => {
@@ -102,6 +115,41 @@ export default function Home() {
   const pendientes = registros.filter(r => r.estado !== 'resuelto').length;
 
   const contPorCliente = (c: Cliente) => registros.filter(r => r.cliente === c).length;
+
+  const esAdmin = usuario?.rol === 'admin';
+
+  // ── PANTALLAS DE CARGA Y LOGIN ──
+  if (cargandoAuth) {
+    return (
+      <div className="min-h-screen bg-grid flex items-center justify-center">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-12 h-12 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center animate-pulse-gold">
+            <Sun size={24} className="text-amber-400 spin-slow" />
+          </div>
+          <p className="font-mono text-sm text-slate-500">Cargando...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!usuario) {
+    return <Login />;
+  }
+
+  // Tabs disponibles según rol
+  const tabs = [
+    { key: 'bitacora', label: 'BITÁCORA', icon: <LayoutDashboard size={13} /> },
+    { key: 'informe', label: 'INFORMES', icon: <FileText size={13} /> },
+    { key: 'plantas', label: 'PLANTAS', icon: <Building2 size={13} /> },
+    { key: 'fichas', label: 'FICHAS', icon: <ClipboardList size={13} /> },
+    { key: 'despachos', label: 'DESPACHOS', icon: <Truck size={13} /> },
+    { key: 'anydesk', label: 'ANYDESK', icon: <Monitor size={13} /> },
+    { key: 'nocturnos', label: 'NOCTURNOS', icon: <Moon size={13} /> },
+    ...(esAdmin ? [
+      { key: 'alertas', label: 'ALERTAS', icon: <Bell size={13} /> },
+      { key: 'usuarios', label: 'USUARIOS', icon: <Users size={13} /> },
+    ] : []),
+  ];
 
   return (
     <div className="min-h-screen bg-grid">
@@ -150,8 +198,17 @@ export default function Home() {
               )}
             </div>
 
-            {/* Theme toggle + Actions */}
+            {/* Usuario + Theme + Actions */}
             <div className="flex items-center gap-2">
+
+              {/* Info usuario */}
+              <div className="hidden sm:flex items-center gap-2 bg-[var(--c-inner)] border border-[var(--c-border-sub)] rounded-xl px-3 py-1.5">
+                {esAdmin && <ShieldCheck size={11} className="text-amber-400 flex-shrink-0" />}
+                <span className="font-mono text-xs text-slate-400 truncate max-w-24">
+                  {usuario.nombre}
+                </span>
+              </div>
+
               <button
                 onClick={toggleTema}
                 className="btn-ghost p-2 rounded-xl"
@@ -159,6 +216,7 @@ export default function Home() {
               >
                 {temaOscuro ? <Moon size={15} /> : <Sun size={15} />}
               </button>
+
               {vista === 'bitacora' && (
                 <>
                   <button
@@ -177,33 +235,59 @@ export default function Home() {
                   </button>
                 </>
               )}
+
+              <button
+                onClick={cerrarSesion}
+                className="btn-ghost p-2 rounded-xl text-slate-500 hover:text-red-400"
+                title="Cerrar sesión"
+              >
+                <LogOut size={15} />
+              </button>
             </div>
 
           </div>{/* end top bar */}
 
           {/* ── NAV TABS ── */}
           <div className="flex items-center gap-0 overflow-x-auto scrollbar-none -mx-4 sm:mx-0 px-4 sm:px-0">
-            {[
-              { key: 'bitacora', label: 'BITÁCORA', icon: <LayoutDashboard size={13} /> },
-              { key: 'informe', label: 'INFORMES', icon: <FileText size={13} /> },
-              { key: 'plantas', label: 'PLANTAS', icon: <Building2 size={13} /> },
-              { key: 'despachos', label: 'DESPACHOS', icon: <Truck size={13} /> },
-              { key: 'anydesk', label: 'ANYDESK', icon: <Monitor size={13} /> },
-              { key: 'alertas', label: 'ALERTAS', icon: <Bell size={13} /> },
-              { key: 'nocturnos', label: 'NOCTURNOS', icon: <Moon size={13} /> },
-            ].map(tab => (
-              <button
-                key={tab.key}
-                onClick={() => setVista(tab.key as Vista)}
-                className={`flex items-center gap-1.5 px-3 sm:px-5 py-2.5 text-xs font-display font-600 tracking-wider border-b-2 transition-all whitespace-nowrap flex-shrink-0 ${vista === tab.key
-                    ? 'border-amber-400 text-amber-400'
-                    : 'border-transparent text-slate-500 hover:text-[var(--c-text-2)]'
-                  }`}
-              >
-                {tab.icon}
-                <span className="hidden xs:inline sm:inline">{tab.label}</span>
-              </button>
-            ))}
+            {tabs.map(tab => {
+              const esActiva = vista === tab.key;
+              const esInicio = vistaInicio === tab.key;
+              return (
+                <div key={tab.key} className="relative flex-shrink-0 group/tab">
+                  <button
+                    onClick={() => setVista(tab.key as Vista)}
+                    className={`flex items-center gap-1.5 px-3 sm:px-4 py-2.5 text-xs font-display font-600 tracking-wider border-b-2 transition-all whitespace-nowrap ${
+                      esActiva
+                        ? 'border-amber-400 text-amber-400'
+                        : 'border-transparent text-slate-500 hover:text-[var(--c-text-2)]'
+                    }`}
+                  >
+                    {tab.icon}
+                    <span className="hidden xs:inline sm:inline">{tab.label}</span>
+                    {esInicio && (
+                      <Star size={9} className="fill-amber-400 text-amber-400 flex-shrink-0" />
+                    )}
+                  </button>
+                  {/* Estrella para fijar inicio — aparece al hover */}
+                  <button
+                    onClick={e => {
+                      e.stopPropagation();
+                      const nueva = tab.key as Vista;
+                      setVistaInicio(nueva);
+                      localStorage.setItem('vistaInicio', nueva);
+                    }}
+                    title="Fijar como página de inicio"
+                    className={`absolute top-1 right-0 p-0.5 rounded transition-all ${
+                      esInicio
+                        ? 'opacity-0 pointer-events-none'
+                        : 'opacity-0 group-hover/tab:opacity-100 text-slate-600 hover:text-amber-400'
+                    }`}
+                  >
+                    <Star size={9} />
+                  </button>
+                </div>
+              );
+            })}
           </div>
 
         </div>
@@ -375,27 +459,37 @@ export default function Home() {
 
         {/* ── VISTA PLANTAS ── */}
         {vista === 'plantas' && (
-          <GestionPlantas />
+          <GestionPlantas soloLectura={!esAdmin} />
+        )}
+
+        {/* ── VISTA FICHAS ── */}
+        {vista === 'fichas' && (
+          <FichasTecnicas soloLectura={!esAdmin} />
         )}
 
         {/* ── VISTA DESPACHOS ── */}
         {vista === 'despachos' && (
-          <GestionDespachos />
+          <GestionDespachos soloLectura={!esAdmin} />
         )}
 
         {/* ── VISTA ANYDESK ── */}
         {vista === 'anydesk' && (
-          <GestionAnyDesk />
+          <GestionAnyDesk soloLectura={!esAdmin} />
         )}
 
-        {/* ── VISTA ALERTAS ── */}
-        {vista === 'alertas' && (
+        {/* ── VISTA ALERTAS (solo admin) ── */}
+        {vista === 'alertas' && esAdmin && (
           <ConfigTelegram />
         )}
 
         {/* ── VISTA NOCTURNOS ── */}
         {vista === 'nocturnos' && (
           <InformesNocturnos />
+        )}
+
+        {/* ── VISTA USUARIOS (solo admin) ── */}
+        {vista === 'usuarios' && esAdmin && (
+          <GestionUsuarios />
         )}
 
       </main>

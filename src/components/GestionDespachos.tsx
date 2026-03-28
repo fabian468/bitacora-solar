@@ -28,7 +28,7 @@ const COLORES: Record<Cliente, { bg: string; border: string; text: string; dot: 
 };
 
 
-export default function GestionDespachos() {
+export default function GestionDespachos({ soloLectura = false }: { soloLectura?: boolean }) {
   const [despachos, setDespachos] = useState<Despacho[]>([]);
   const [plantas, setPlantas] = useState<Planta[]>([]);
   const [cargando, setCargando] = useState(true);
@@ -485,26 +485,28 @@ export default function GestionDespachos() {
                         </div>
                       )}
 
-                      {/* Acciones */}
-                      <div className="flex gap-3 pt-1">
-                        <button
-                          onClick={() => abrirEdicionModal(d)}
-                          className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl border border-[var(--c-border)] text-slate-400 hover:text-amber-400 hover:border-amber-400/40 hover:bg-amber-500/5 text-sm font-mono transition-all"
-                        >
-                          <Pencil size={13} /> Editar
-                        </button>
-                        <button
-                          onClick={() => handleEliminar(d.id!)}
-                          className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl border text-sm font-mono transition-all ${
-                            confirmDelete === d.id
-                              ? 'bg-red-500/20 border-red-500/40 text-red-400'
-                              : 'border-[var(--c-border)] text-slate-400 hover:text-red-400 hover:border-red-400/40 hover:bg-red-500/5'
-                          }`}
-                        >
-                          <Trash2 size={13} />
-                          {confirmDelete === d.id ? '¿Confirmar eliminación?' : 'Eliminar'}
-                        </button>
-                      </div>
+                      {/* Acciones — solo admin */}
+                      {!soloLectura && (
+                        <div className="flex gap-3 pt-1">
+                          <button
+                            onClick={() => abrirEdicionModal(d)}
+                            className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl border border-[var(--c-border)] text-slate-400 hover:text-amber-400 hover:border-amber-400/40 hover:bg-amber-500/5 text-sm font-mono transition-all"
+                          >
+                            <Pencil size={13} /> Editar
+                          </button>
+                          <button
+                            onClick={() => handleEliminar(d.id!)}
+                            className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl border text-sm font-mono transition-all ${
+                              confirmDelete === d.id
+                                ? 'bg-red-500/20 border-red-500/40 text-red-400'
+                                : 'border-[var(--c-border)] text-slate-400 hover:text-red-400 hover:border-red-400/40 hover:bg-red-500/5'
+                            }`}
+                          >
+                            <Trash2 size={13} />
+                            {confirmDelete === d.id ? '¿Confirmar eliminación?' : 'Eliminar'}
+                          </button>
+                        </div>
+                      )}
                     </>
                   )}
                 </div>
@@ -526,9 +528,11 @@ export default function GestionDespachos() {
             <button onClick={cargar} className="btn-ghost p-2 rounded-lg flex-shrink-0">
               <RefreshCw size={14} className={cargando ? 'spin-slow' : ''} />
             </button>
-            <button onClick={abrirModal} className="btn-primary flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-display font-700 tracking-wider">
-              <Plus size={14} /> NUEVO
-            </button>
+            {!soloLectura && (
+              <button onClick={abrirModal} className="btn-primary flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-display font-700 tracking-wider">
+                <Plus size={14} /> NUEVO
+              </button>
+            )}
           </div>
         </div>
 

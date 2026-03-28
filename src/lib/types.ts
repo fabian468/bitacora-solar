@@ -2,6 +2,60 @@
 
 export type Cliente = 'Carbon Free' | 'Matrix';
 
+export type RolUsuario = 'admin' | 'operador';
+
+export interface Usuario {
+  uid: string;
+  username: string;
+  nombre: string;
+  rol: RolUsuario;
+  createdAt?: number;
+}
+
+export type TipoPlanta = 'Fotovoltaica' | 'Eólica' | 'Hidráulica' | 'Termosolar' | 'Otra';
+
+export interface FichaPlanta {
+  id?: string;
+  plantaNombre: string;
+  cliente: Cliente;
+
+  // Identificación
+  tipoPlanta?: TipoPlanta;
+  fechaOperacion?: string;
+  codigoPMGD?: string;
+  numeroContrato?: string;
+  empresa?: string;               // distribuidora
+
+  // Generación
+  potenciaInstaladaDC?: string;   // kWp
+  potenciaNominalAC?: string;     // kW
+  numInversores?: string;
+  numTrackers?: string;
+  numStrings?: string;
+  tecnologia?: string;            // solo aplica fotovoltaica
+
+  // Conexión eléctrica
+  tensionAlimentador?: string;    // kV nominal
+  capacidadAlimentador?: string;  // MVA
+  tensionTrabajoMin?: string;     // kV mínimo
+  tensionTrabajoMax?: string;     // kV máximo
+  limitacion?: string;            // kW
+  tipoLimitacion?: string;
+
+  // Contactos
+  contactoNombre?: string;
+  contactoTelefono?: string;
+  contactoDistribuidora?: string;
+  telefonoDistribuidora?: string;
+  contactoEmergencia?: string;
+
+  // Operación
+  procedimientos?: string;
+  observaciones?: string;
+
+  updatedAt?: number;
+}
+
 export interface Planta {
   id?: string;
   nombre: string;

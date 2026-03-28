@@ -14,7 +14,7 @@ const COLORES: Record<Cliente, { bg: string; border: string; text: string; dot: 
   'Matrix':      { bg: 'bg-cyan-500/10',  border: 'border-cyan-500/30',  text: 'text-cyan-400',  dot: 'bg-cyan-400'  },
 };
 
-export default function GestionAnyDesk() {
+export default function GestionAnyDesk({ soloLectura = false }: { soloLectura?: boolean }) {
   const [lista, setLista] = useState<AnyDesk[]>([]);
   const [plantas, setPlantas] = useState<Planta[]>([]);
   const [cargando, setCargando] = useState(true);
@@ -302,10 +302,12 @@ export default function GestionAnyDesk() {
             <button onClick={cargar} className="btn-ghost p-2 rounded-lg">
               <RefreshCw size={14} className={cargando ? 'spin-slow' : ''} />
             </button>
-            <button onClick={abrirModal} className="btn-primary flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-display font-700 tracking-wider">
-              <Plus size={14} />
-              NUEVO
-            </button>
+            {!soloLectura && (
+              <button onClick={abrirModal} className="btn-primary flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-display font-700 tracking-wider">
+                <Plus size={14} />
+                NUEVO
+              </button>
+            )}
           </div>
         </div>
 
@@ -421,23 +423,27 @@ export default function GestionAnyDesk() {
                                     >
                                       {copiadoId === a.id ? <ClipboardCheck size={13} /> : <Copy size={13} />}
                                     </button>
-                                    <button
-                                      onClick={() => iniciarEdicion(a)}
-                                      className="p-1.5 rounded-lg text-slate-600 hover:text-amber-400 hover:bg-amber-400/10 transition-all opacity-0 group-hover:opacity-100"
-                                    >
-                                      <Pencil size={12} />
-                                    </button>
-                                    <button
-                                      onClick={() => handleEliminar(a.id!)}
-                                      className={`p-1.5 rounded-lg transition-all text-xs flex items-center gap-1 ${
-                                        confirmDelete === a.id
-                                          ? 'bg-red-500/20 border border-red-500/40 text-red-400 opacity-100'
-                                          : 'text-slate-600 hover:text-red-400 hover:bg-red-400/10 opacity-0 group-hover:opacity-100'
-                                      }`}
-                                    >
-                                      <Trash2 size={12} />
-                                      {confirmDelete === a.id && <span className="font-mono">¿Eliminar?</span>}
-                                    </button>
+                                    {!soloLectura && (
+                                      <>
+                                        <button
+                                          onClick={() => iniciarEdicion(a)}
+                                          className="p-1.5 rounded-lg text-slate-600 hover:text-amber-400 hover:bg-amber-400/10 transition-all opacity-0 group-hover:opacity-100"
+                                        >
+                                          <Pencil size={12} />
+                                        </button>
+                                        <button
+                                          onClick={() => handleEliminar(a.id!)}
+                                          className={`p-1.5 rounded-lg transition-all text-xs flex items-center gap-1 ${
+                                            confirmDelete === a.id
+                                              ? 'bg-red-500/20 border border-red-500/40 text-red-400 opacity-100'
+                                              : 'text-slate-600 hover:text-red-400 hover:bg-red-400/10 opacity-0 group-hover:opacity-100'
+                                          }`}
+                                        >
+                                          <Trash2 size={12} />
+                                          {confirmDelete === a.id && <span className="font-mono">¿Eliminar?</span>}
+                                        </button>
+                                      </>
+                                    )}
                                   </div>
                                 </div>
                               )}
