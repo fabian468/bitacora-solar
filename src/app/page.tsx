@@ -17,13 +17,15 @@ import ConfigTelegram from '@/components/ConfigTelegram';
 import InformesNocturnos from '@/components/InformesNocturnos';
 import GestionUsuarios from '@/components/GestionUsuarios';
 import FichasTecnicas from '@/components/FichasTecnicas';
+import Procedimientos from '@/components/Procedimientos';
+import BuscadorGlobal from '@/components/BuscadorGlobal';
 import {
   Sun, Plus, RefreshCw, Search, Zap, Activity,
   BookOpen, FileText, LayoutDashboard, Building2, Bell, Truck, Monitor,
-  Moon, X, Users, LogOut, ShieldCheck, ClipboardList, Star
+  Moon, X, Users, LogOut, ShieldCheck, ClipboardList, Star, BookMarked
 } from 'lucide-react';
 
-type Vista = 'bitacora' | 'informe' | 'plantas' | 'despachos' | 'anydesk' | 'alertas' | 'nocturnos' | 'usuarios' | 'fichas';
+type Vista = 'bitacora' | 'informe' | 'plantas' | 'despachos' | 'anydesk' | 'alertas' | 'nocturnos' | 'usuarios' | 'fichas' | 'procedimientos';
 
 const CLIENTE_COLORES: Record<Cliente, { activo: string; inactivo: string; dot: string }> = {
   'Carbon Free': {
@@ -55,6 +57,9 @@ export default function Home() {
   const [busqueda, setBusqueda] = useState('');
   const [error, setError] = useState('');
   const [temaOscuro, setTemaOscuro] = useState(true);
+  const [mostrarBuscador, setMostrarBuscador] = useState(false);
+  const [pagina, setPagina] = useState(1);
+  const POR_PAGINA = 12;
 
   useEffect(() => {
     const guardado = localStorage.getItem('tema');
@@ -92,6 +97,17 @@ export default function Home() {
     if (usuario) cargar();
   }, [usuario, cargar]);
 
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+        e.preventDefault();
+        if (usuario) setMostrarBuscador(v => !v);
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [usuario]);
+
   // Filtros combinados
   const filtrados = registros.filter(r => {
     const matchCliente = clienteFiltro === 'todos' || r.cliente === clienteFiltro;
@@ -101,6 +117,13 @@ export default function Home() {
     const matchHasta = !fechaHasta || r.fechaInicio <= fechaHasta;
     return matchCliente && matchBusqueda && matchDesde && matchHasta;
   });
+
+  const totalPaginas = Math.ceil(filtrados.length / POR_PAGINA);
+  const paginaActual = Math.min(pagina, totalPaginas || 1);
+  const registrosPagina = filtrados.slice((paginaActual - 1) * POR_PAGINA, paginaActual * POR_PAGINA);
+
+  // Resetear a página 1 cuando cambian los filtros
+  useEffect(() => { setPagina(1); }, [busqueda, clienteFiltro, fechaDesde, fechaHasta]);
 
   const setRangoFecha = (dias: number) => {
     const desde = new Date(Date.now() - dias * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
@@ -145,6 +168,7 @@ export default function Home() {
     { key: 'despachos', label: 'DESPACHOS', icon: <Truck size={13} /> },
     { key: 'anydesk', label: 'ANYDESK', icon: <Monitor size={13} /> },
     { key: 'nocturnos', label: 'NOCTURNOS', icon: <Moon size={13} /> },
+    { key: 'procedimientos', label: 'PROCEDIMIENTOS', icon: <BookMarked size={13} /> },
     ...(esAdmin ? [
       { key: 'alertas', label: 'ALERTAS', icon: <Bell size={13} /> },
       { key: 'usuarios', label: 'USUARIOS', icon: <Users size={13} /> },
@@ -208,6 +232,16 @@ export default function Home() {
                   {usuario.nombre}
                 </span>
               </div>
+
+              <button
+                onClick={() => setMostrarBuscador(true)}
+                className="btn-ghost px-3 py-2 rounded-xl flex items-center gap-2 text-slate-500 hover:text-[var(--c-text)] border border-[var(--c-border-sub)] hover:border-amber-500/30 transition-all"
+                title="Búsqueda global (Ctrl+K)"
+              >
+                <Search size={13} />
+                <span className="hidden md:inline font-mono text-xs">Buscar...</span>
+                <kbd className="hidden md:inline font-mono text-xs text-slate-600 bg-[var(--c-inner)] border border-[var(--c-border-sub)] rounded px-1.5 py-0.5">⌃K</kbd>
+              </button>
 
               <button
                 onClick={toggleTema}
@@ -435,19 +469,84 @@ export default function Home() {
             )}
 
             {!cargando && filtrados.length > 0 && (
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-                {filtrados.map((r, i) => (
-                  <div key={r.id} style={{ animationDelay: `${i * 0.05}s` }}>
-                    <CardRegistro
-                      registro={r}
-                      plantas={plantas}
-                      onEliminado={cargar}
-                      onActualizado={cargar}
-                      onClonar={reg => { setRegistroAclonar(reg); setMostrarForm(true); }}
-                    />
+              <>
+                {/* Contador */}
+                <div className="flex items-center justify-between mb-3">
+                  <p className="font-mono text-xs text-slate-500">
+                    Mostrando <span className="text-[var(--c-text-2)]">{(paginaActual - 1) * POR_PAGINA + 1}–{Math.min(paginaActual * POR_PAGINA, filtrados.length)}</span> de <span className="text-[var(--c-text-2)]">{filtrados.length}</span> registros
+                  </p>
+                  {totalPaginas > 1 && (
+                    <p className="font-mono text-xs text-slate-600">Página {paginaActual} / {totalPaginas}</p>
+                  )}
+                </div>
+
+                {/* Grid */}
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                  {registrosPagina.map((r, i) => (
+                    <div key={r.id} style={{ animationDelay: `${i * 0.04}s` }}>
+                      <CardRegistro
+                        registro={r}
+                        plantas={plantas}
+                        onEliminado={cargar}
+                        onActualizado={cargar}
+                        onClonar={reg => { setRegistroAclonar(reg); setMostrarForm(true); }}
+                      />
+                    </div>
+                  ))}
+                </div>
+
+                {/* Controles de paginación */}
+                {totalPaginas > 1 && (
+                  <div className="flex items-center justify-center gap-1 mt-8">
+                    {/* Anterior */}
+                    <button
+                      onClick={() => setPagina(p => Math.max(1, p - 1))}
+                      disabled={paginaActual === 1}
+                      className="px-3 py-2 rounded-xl text-xs font-mono border border-[var(--c-border-sub)] text-slate-500 hover:border-amber-500/40 hover:text-amber-400 disabled:opacity-30 disabled:pointer-events-none transition-all"
+                    >
+                      ← Ant
+                    </button>
+
+                    {/* Números de página */}
+                    {Array.from({ length: totalPaginas }, (_, i) => i + 1)
+                      .filter(n => n === 1 || n === totalPaginas || Math.abs(n - paginaActual) <= 1)
+                      .reduce<(number | '...')[]>((acc, n, idx, arr) => {
+                        if (idx > 0 && typeof arr[idx - 1] === 'number' && (n as number) - (arr[idx - 1] as number) > 1) {
+                          acc.push('...');
+                        }
+                        acc.push(n);
+                        return acc;
+                      }, [])
+                      .map((item, idx) =>
+                        item === '...' ? (
+                          <span key={`dots-${idx}`} className="px-2 text-slate-600 font-mono text-xs">…</span>
+                        ) : (
+                          <button
+                            key={item}
+                            onClick={() => setPagina(item as number)}
+                            className={`w-9 h-9 rounded-xl text-xs font-mono border transition-all ${
+                              paginaActual === item
+                                ? 'bg-amber-500/15 border-amber-500/40 text-amber-400'
+                                : 'border-[var(--c-border-sub)] text-slate-500 hover:border-amber-500/30 hover:text-amber-400'
+                            }`}
+                          >
+                            {item}
+                          </button>
+                        )
+                      )
+                    }
+
+                    {/* Siguiente */}
+                    <button
+                      onClick={() => setPagina(p => Math.min(totalPaginas, p + 1))}
+                      disabled={paginaActual === totalPaginas}
+                      className="px-3 py-2 rounded-xl text-xs font-mono border border-[var(--c-border-sub)] text-slate-500 hover:border-amber-500/40 hover:text-amber-400 disabled:opacity-30 disabled:pointer-events-none transition-all"
+                    >
+                      Sig →
+                    </button>
                   </div>
-                ))}
-              </div>
+                )}
+              </>
             )}
           </>
         )}
@@ -492,6 +591,11 @@ export default function Home() {
           <GestionUsuarios />
         )}
 
+        {/* ── VISTA PROCEDIMIENTOS ── */}
+        {vista === 'procedimientos' && (
+          <Procedimientos soloLectura={!esAdmin} />
+        )}
+
       </main>
 
       {/* Modales */}
@@ -509,6 +613,15 @@ export default function Home() {
           onClose={() => setMostrarEscanear(false)}
           onGuardados={cargar}
           plantas={plantas}
+        />
+      )}
+
+      {mostrarBuscador && (
+        <BuscadorGlobal
+          registros={registros}
+          plantas={plantas}
+          onNavegar={v => { setVista(v); }}
+          onClose={() => setMostrarBuscador(false)}
         />
       )}
 

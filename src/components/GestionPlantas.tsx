@@ -1,20 +1,87 @@
 'use client';
 // src/components/GestionPlantas.tsx
 import { useState, useEffect, useCallback } from 'react';
-import { Planta, Despacho, AnyDesk, Cliente, CLIENTES } from '@/lib/types';
+import { Planta, Despacho, AnyDesk, FichaPlanta, TipoPlanta, Cliente, CLIENTES } from '@/lib/types';
 import { crearPlanta, obtenerPlantas, eliminarPlanta } from '@/lib/plantas';
 import { crearDespacho, obtenerDespachos, eliminarDespacho, actualizarDespacho } from '@/lib/despachos';
 import { crearAnyDesk, obtenerAnyDesks, eliminarAnyDesk, actualizarAnyDesk } from '@/lib/anydesk';
+import { obtenerFichas, guardarFicha } from '@/lib/fichas';
 import {
   Plus, Trash2, Loader2, Sun, Building2, RefreshCw, AlertCircle,
   Truck, Monitor, Hash, MapPin, Zap, Pencil, Check, X,
-  Copy, ClipboardCheck, ChevronRight, Search
+  Copy, ClipboardCheck, ChevronRight, Search, FileText, Phone,
+  Save, CheckCircle, Wind, Droplets, Flame, Cpu, Settings, Plug
 } from 'lucide-react';
 
 const COLORES: Record<Cliente, { bg: string; border: string; text: string; dot: string }> = {
   'Carbon Free': { bg: 'bg-green-500/10', border: 'border-green-500/30', text: 'text-green-400', dot: 'bg-green-400' },
   'Matrix':      { bg: 'bg-cyan-500/10',  border: 'border-cyan-500/30',  text: 'text-cyan-400',  dot: 'bg-cyan-400'  },
 };
+
+const TIPOS_PLANTA: { value: TipoPlanta; icon: React.ReactNode; color: string }[] = [
+  { value: 'Fotovoltaica', icon: <Sun size={13} />,      color: 'text-amber-400 border-amber-500/40 bg-amber-500/10' },
+  { value: 'Eólica',       icon: <Wind size={13} />,     color: 'text-sky-400   border-sky-500/40   bg-sky-500/10'   },
+  { value: 'Hidráulica',   icon: <Droplets size={13} />, color: 'text-blue-400  border-blue-500/40  bg-blue-500/10'  },
+  { value: 'Termosolar',   icon: <Flame size={13} />,    color: 'text-orange-400 border-orange-500/40 bg-orange-500/10' },
+  { value: 'Otra',         icon: <Cpu size={13} />,      color: 'text-slate-400 border-slate-500/40 bg-slate-500/10' },
+];
+
+const FICHA_VACIA = (plantaNombre: string, cliente: Cliente): FichaPlanta => ({
+  plantaNombre, cliente,
+  tipoPlanta: undefined, fechaOperacion: '', codigoPMGD: '', numeroContrato: '', empresa: '',
+  potenciaInstaladaDC: '', potenciaNominalAC: '', numInversores: '', numTrackers: '',
+  numStrings: '', tecnologia: '',
+  tensionAlimentador: '', capacidadAlimentador: '', tensionTrabajoMin: '', tensionTrabajoMax: '',
+  limitacion: '', tipoLimitacion: '',
+  contactoNombre: '', contactoTelefono: '', contactoDistribuidora: '',
+  telefonoDistribuidora: '', contactoEmergencia: '',
+  procedimientos: '', observaciones: '',
+});
+
+function CampoFicha({ label, value }: { label: string; value?: string }) {
+  if (!value) return null;
+  return (
+    <div className="flex flex-col gap-0.5">
+      <span className="font-mono text-xs text-slate-500 uppercase tracking-widest">{label}</span>
+      <span className="text-sm text-[var(--c-text)] font-500">{value}</span>
+    </div>
+  );
+}
+
+function SeccionFicha({ icon, title, children }: { icon: React.ReactNode; title: string; children: React.ReactNode }) {
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center gap-2">
+        <span className="text-slate-500">{icon}</span>
+        <span className="font-display font-600 text-xs tracking-widest text-slate-500">{title}</span>
+      </div>
+      <div className="grid grid-cols-2 gap-x-4 gap-y-2.5 pl-1">{children}</div>
+    </div>
+  );
+}
+
+function InputFicha({ label, value, onChange, placeholder, fullWidth = false }: {
+  label: string; value: string; onChange: (v: string) => void; placeholder?: string; fullWidth?: boolean;
+}) {
+  return (
+    <div className={`flex flex-col gap-1 ${fullWidth ? 'col-span-2' : ''}`}>
+      <label className="font-mono text-xs text-slate-500 uppercase tracking-widest">{label}</label>
+      <input type="text" value={value} onChange={e => onChange(e.target.value)}
+        placeholder={placeholder ?? '—'}
+        className="input-solar rounded-lg px-3 py-1.5 text-sm" />
+    </div>
+  );
+}
+
+function TextareaFicha({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
+  return (
+    <div className="flex flex-col gap-1 col-span-2">
+      <label className="font-mono text-xs text-slate-500 uppercase tracking-widest">{label}</label>
+      <textarea value={value} onChange={e => onChange(e.target.value)} rows={3}
+        className="input-solar rounded-lg px-3 py-2 text-sm resize-none" />
+    </div>
+  );
+}
 
 export default function GestionPlantas({ soloLectura = false }: { soloLectura?: boolean }) {
   const [plantas, setPlantas] = useState<Planta[]>([]);
@@ -56,13 +123,21 @@ export default function GestionPlantas({ soloLectura = false }: { soloLectura?: 
   const [editAdData, setEditAdData] = useState({ nombre: '', numero: '' });
   const [copiadoAd, setCopiadoAd] = useState<string | null>(null);
 
+  // Fichas técnicas
+  const [fichas, setFichas] = useState<FichaPlanta[]>([]);
+  const [editandoFicha, setEditandoFicha] = useState(false);
+  const [formFicha, setFormFicha] = useState<FichaPlanta | null>(null);
+  const [guardandoFicha, setGuardandoFicha] = useState(false);
+  const [guardadoFichaOk, setGuardadoFichaOk] = useState(false);
+
   const cargar = useCallback(async () => {
     setCargando(true);
     try {
-      const [plts, desps, ads] = await Promise.all([obtenerPlantas(), obtenerDespachos(), obtenerAnyDesks()]);
+      const [plts, desps, ads, fichs] = await Promise.all([obtenerPlantas(), obtenerDespachos(), obtenerAnyDesks(), obtenerFichas()]);
       setPlantas(plts);
       setDespachos(desps);
       setAnydesks(ads);
+      setFichas(fichs);
       // Actualizar planta seleccionada si está abierta
       if (plantaSeleccionada) {
         const updated = plts.find(p => p.id === plantaSeleccionada.id);
@@ -186,6 +261,28 @@ export default function GestionPlantas({ soloLectura = false }: { soloLectura?: 
 
   const despsDeSeleccionada = plantaSeleccionada ? despachos.filter(d => d.planta === plantaSeleccionada.nombre) : [];
   const adsDeSeleccionada   = plantaSeleccionada ? anydesks.filter(a => a.planta === plantaSeleccionada.nombre) : [];
+  const fichaDeSeleccionada = plantaSeleccionada ? fichas.find(f => f.plantaNombre === plantaSeleccionada.nombre) ?? null : null;
+
+  const handleGuardarFicha = async () => {
+    if (!formFicha || !plantaSeleccionada) return;
+    setGuardandoFicha(true);
+    try {
+      await guardarFicha({ ...formFicha, plantaNombre: plantaSeleccionada.nombre, cliente: plantaSeleccionada.cliente });
+      setEditandoFicha(false);
+      setGuardadoFichaOk(true);
+      setTimeout(() => setGuardadoFichaOk(false), 2500);
+      await cargar();
+    } catch { setError('Error al guardar ficha'); }
+    finally { setGuardandoFicha(false); }
+  };
+
+  const iniciarEditFicha = () => {
+    if (!plantaSeleccionada) return;
+    setFormFicha(fichaDeSeleccionada
+      ? { ...fichaDeSeleccionada }
+      : FICHA_VACIA(plantaSeleccionada.nombre, plantaSeleccionada.cliente));
+    setEditandoFicha(true);
+  };
 
   const q = busqueda.toLowerCase();
   const plantasFiltradas = busqueda
@@ -313,6 +410,7 @@ export default function GestionPlantas({ soloLectura = false }: { soloLectura?: 
               {lista.map(planta => {
                 const nDesps = despachos.filter(d => d.planta === planta.nombre).length;
                 const nAds   = anydesks.filter(a => a.planta === planta.nombre).length;
+                const tieneFicha = fichas.some(f => f.plantaNombre === planta.nombre);
                 return (
                   <button key={planta.id} onClick={() => abrirModal(planta)}
                     className="w-full text-left bg-[var(--c-card)] border border-[var(--c-border)] rounded-xl px-4 py-3 hover:border-amber-500/40 hover:bg-amber-500/5 transition-all group"
@@ -329,6 +427,11 @@ export default function GestionPlantas({ soloLectura = false }: { soloLectura?: 
                             <span className="flex items-center gap-1 font-mono text-xs text-slate-500">
                               <Monitor size={10} /> {nAds}
                             </span>
+                            {tieneFicha && (
+                              <span className="flex items-center gap-1 font-mono text-xs text-purple-400/60">
+                                <FileText size={10} /> ficha
+                              </span>
+                            )}
                           </div>
                         </div>
                       </div>
@@ -576,6 +679,197 @@ export default function GestionPlantas({ soloLectura = false }: { soloLectura?: 
                       </div>
                     ))}
                   </div>
+                </div>
+
+                {/* ── FICHA TÉCNICA ── */}
+                <div className="px-6 py-5">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-2">
+                      <FileText size={14} className="text-purple-400" />
+                      <span className="font-display font-600 text-sm tracking-widest text-[var(--c-text)]">FICHA TÉCNICA</span>
+                      {fichaDeSeleccionada && (
+                        <span className="font-mono text-xs text-purple-400/70 bg-purple-500/10 border border-purple-500/20 rounded px-1.5 py-0.5">
+                          {fichaDeSeleccionada.tipoPlanta ?? 'Registrada'}
+                        </span>
+                      )}
+                    </div>
+                    {!soloLectura && !editandoFicha && (
+                      <button onClick={iniciarEditFicha}
+                        className="flex items-center gap-1.5 text-xs font-mono text-slate-500 hover:text-purple-400 transition-colors border border-[var(--c-border-sub)] hover:border-purple-400/40 rounded-lg px-2.5 py-1.5"
+                      >
+                        <Pencil size={11} /> {fichaDeSeleccionada ? 'Editar' : 'Completar'}
+                      </button>
+                    )}
+                    {guardadoFichaOk && (
+                      <span className="flex items-center gap-1 text-xs font-mono text-green-400">
+                        <CheckCircle size={12} /> Guardado
+                      </span>
+                    )}
+                  </div>
+
+                  {/* MODO EDICIÓN */}
+                  {editandoFicha && formFicha && (
+                    <div className="space-y-5">
+
+                      {/* Tipo planta */}
+                      <div className="space-y-1.5">
+                        <label className="font-mono text-xs text-slate-500 uppercase tracking-widest">Tipo de planta</label>
+                        <div className="flex flex-wrap gap-2">
+                          {TIPOS_PLANTA.map(t => (
+                            <button key={t.value} type="button"
+                              onClick={() => setFormFicha(f => f ? { ...f, tipoPlanta: t.value } : f)}
+                              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs font-mono transition-all ${formFicha.tipoPlanta === t.value ? t.color : 'border-[var(--c-border-sub)] text-slate-500 hover:border-slate-500'}`}
+                            >
+                              {t.icon} {t.value}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-3">
+                        <InputFicha label="Fecha operación" value={formFicha.fechaOperacion ?? ''} onChange={v => setFormFicha(f => f ? { ...f, fechaOperacion: v } : f)} placeholder="dd/mm/yyyy" />
+                        <InputFicha label="Código PMGD" value={formFicha.codigoPMGD ?? ''} onChange={v => setFormFicha(f => f ? { ...f, codigoPMGD: v } : f)} />
+                        <InputFicha label="N° Contrato" value={formFicha.numeroContrato ?? ''} onChange={v => setFormFicha(f => f ? { ...f, numeroContrato: v } : f)} />
+                        <InputFicha label="Distribuidora" value={formFicha.empresa ?? ''} onChange={v => setFormFicha(f => f ? { ...f, empresa: v } : f)} />
+                      </div>
+
+                      <div className="border-t border-[var(--c-border-sub)] pt-4 space-y-1.5">
+                        <div className="flex items-center gap-1.5 mb-2">
+                          <Zap size={12} className="text-amber-400" />
+                          <span className="font-mono text-xs text-slate-500 uppercase tracking-widest">Generación</span>
+                        </div>
+                        <div className="grid grid-cols-2 gap-3">
+                          <InputFicha label="Potencia DC (kWp)" value={formFicha.potenciaInstaladaDC ?? ''} onChange={v => setFormFicha(f => f ? { ...f, potenciaInstaladaDC: v } : f)} />
+                          <InputFicha label="Potencia AC (kW)" value={formFicha.potenciaNominalAC ?? ''} onChange={v => setFormFicha(f => f ? { ...f, potenciaNominalAC: v } : f)} />
+                          <InputFicha label="N° Inversores" value={formFicha.numInversores ?? ''} onChange={v => setFormFicha(f => f ? { ...f, numInversores: v } : f)} />
+                          <InputFicha label="N° Trackers" value={formFicha.numTrackers ?? ''} onChange={v => setFormFicha(f => f ? { ...f, numTrackers: v } : f)} />
+                          <InputFicha label="N° Strings" value={formFicha.numStrings ?? ''} onChange={v => setFormFicha(f => f ? { ...f, numStrings: v } : f)} />
+                          <InputFicha label="Tecnología" value={formFicha.tecnologia ?? ''} onChange={v => setFormFicha(f => f ? { ...f, tecnologia: v } : f)} />
+                        </div>
+                      </div>
+
+                      <div className="border-t border-[var(--c-border-sub)] pt-4 space-y-1.5">
+                        <div className="flex items-center gap-1.5 mb-2">
+                          <Plug size={12} className="text-sky-400" />
+                          <span className="font-mono text-xs text-slate-500 uppercase tracking-widest">Conexión eléctrica</span>
+                        </div>
+                        <div className="grid grid-cols-2 gap-3">
+                          <InputFicha label="Tensión alimentador (kV)" value={formFicha.tensionAlimentador ?? ''} onChange={v => setFormFicha(f => f ? { ...f, tensionAlimentador: v } : f)} />
+                          <InputFicha label="Capacidad alim. (MVA)" value={formFicha.capacidadAlimentador ?? ''} onChange={v => setFormFicha(f => f ? { ...f, capacidadAlimentador: v } : f)} />
+                          <InputFicha label="Tensión mín. (kV)" value={formFicha.tensionTrabajoMin ?? ''} onChange={v => setFormFicha(f => f ? { ...f, tensionTrabajoMin: v } : f)} />
+                          <InputFicha label="Tensión máx. (kV)" value={formFicha.tensionTrabajoMax ?? ''} onChange={v => setFormFicha(f => f ? { ...f, tensionTrabajoMax: v } : f)} />
+                          <InputFicha label="Limitación (kW)" value={formFicha.limitacion ?? ''} onChange={v => setFormFicha(f => f ? { ...f, limitacion: v } : f)} />
+                          <InputFicha label="Tipo limitación" value={formFicha.tipoLimitacion ?? ''} onChange={v => setFormFicha(f => f ? { ...f, tipoLimitacion: v } : f)} />
+                        </div>
+                      </div>
+
+                      <div className="border-t border-[var(--c-border-sub)] pt-4 space-y-1.5">
+                        <div className="flex items-center gap-1.5 mb-2">
+                          <Phone size={12} className="text-green-400" />
+                          <span className="font-mono text-xs text-slate-500 uppercase tracking-widest">Contactos</span>
+                        </div>
+                        <div className="grid grid-cols-2 gap-3">
+                          <InputFicha label="Contacto nombre" value={formFicha.contactoNombre ?? ''} onChange={v => setFormFicha(f => f ? { ...f, contactoNombre: v } : f)} />
+                          <InputFicha label="Contacto teléfono" value={formFicha.contactoTelefono ?? ''} onChange={v => setFormFicha(f => f ? { ...f, contactoTelefono: v } : f)} />
+                          <InputFicha label="Contacto distribuidora" value={formFicha.contactoDistribuidora ?? ''} onChange={v => setFormFicha(f => f ? { ...f, contactoDistribuidora: v } : f)} />
+                          <InputFicha label="Tel. distribuidora" value={formFicha.telefonoDistribuidora ?? ''} onChange={v => setFormFicha(f => f ? { ...f, telefonoDistribuidora: v } : f)} />
+                          <InputFicha label="Contacto emergencia" value={formFicha.contactoEmergencia ?? ''} onChange={v => setFormFicha(f => f ? { ...f, contactoEmergencia: v } : f)} fullWidth />
+                        </div>
+                      </div>
+
+                      <div className="border-t border-[var(--c-border-sub)] pt-4 space-y-3">
+                        <TextareaFicha label="Procedimientos" value={formFicha.procedimientos ?? ''} onChange={v => setFormFicha(f => f ? { ...f, procedimientos: v } : f)} />
+                        <TextareaFicha label="Observaciones" value={formFicha.observaciones ?? ''} onChange={v => setFormFicha(f => f ? { ...f, observaciones: v } : f)} />
+                      </div>
+
+                      <div className="flex gap-2 pt-2">
+                        <button onClick={handleGuardarFicha} disabled={guardandoFicha}
+                          className="flex-1 py-2.5 rounded-xl btn-primary flex items-center justify-center gap-2 text-sm font-display font-700 disabled:opacity-50"
+                        >
+                          {guardandoFicha ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />} GUARDAR FICHA
+                        </button>
+                        <button onClick={() => setEditandoFicha(false)}
+                          className="px-4 py-2.5 rounded-xl border border-[var(--c-border)] text-slate-400 text-sm font-mono"
+                        >
+                          Cancelar
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* MODO VISTA */}
+                  {!editandoFicha && fichaDeSeleccionada && (
+                    <div className="space-y-5">
+
+                      {/* Tipo */}
+                      {fichaDeSeleccionada.tipoPlanta && (() => {
+                        const t = TIPOS_PLANTA.find(t => t.value === fichaDeSeleccionada.tipoPlanta);
+                        return t ? (
+                          <div className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs font-mono ${t.color}`}>
+                            {t.icon} {t.value}
+                          </div>
+                        ) : null;
+                      })()}
+
+                      <SeccionFicha icon={<Settings size={12} />} title="IDENTIFICACIÓN">
+                        <CampoFicha label="Fecha operación" value={fichaDeSeleccionada.fechaOperacion} />
+                        <CampoFicha label="Código PMGD" value={fichaDeSeleccionada.codigoPMGD} />
+                        <CampoFicha label="N° Contrato" value={fichaDeSeleccionada.numeroContrato} />
+                        <CampoFicha label="Distribuidora" value={fichaDeSeleccionada.empresa} />
+                      </SeccionFicha>
+
+                      <SeccionFicha icon={<Zap size={12} />} title="GENERACIÓN">
+                        <CampoFicha label="Potencia DC" value={fichaDeSeleccionada.potenciaInstaladaDC ? `${fichaDeSeleccionada.potenciaInstaladaDC} kWp` : undefined} />
+                        <CampoFicha label="Potencia AC" value={fichaDeSeleccionada.potenciaNominalAC ? `${fichaDeSeleccionada.potenciaNominalAC} kW` : undefined} />
+                        <CampoFicha label="Inversores" value={fichaDeSeleccionada.numInversores} />
+                        <CampoFicha label="Trackers" value={fichaDeSeleccionada.numTrackers} />
+                        <CampoFicha label="Strings" value={fichaDeSeleccionada.numStrings} />
+                        <CampoFicha label="Tecnología" value={fichaDeSeleccionada.tecnologia} />
+                      </SeccionFicha>
+
+                      <SeccionFicha icon={<Plug size={12} />} title="CONEXIÓN ELÉCTRICA">
+                        <CampoFicha label="Tensión alimentador" value={fichaDeSeleccionada.tensionAlimentador ? `${fichaDeSeleccionada.tensionAlimentador} kV` : undefined} />
+                        <CampoFicha label="Capacidad alim." value={fichaDeSeleccionada.capacidadAlimentador ? `${fichaDeSeleccionada.capacidadAlimentador} MVA` : undefined} />
+                        <CampoFicha label="Tensión mín." value={fichaDeSeleccionada.tensionTrabajoMin ? `${fichaDeSeleccionada.tensionTrabajoMin} kV` : undefined} />
+                        <CampoFicha label="Tensión máx." value={fichaDeSeleccionada.tensionTrabajoMax ? `${fichaDeSeleccionada.tensionTrabajoMax} kV` : undefined} />
+                        <CampoFicha label="Limitación" value={fichaDeSeleccionada.limitacion ? `${fichaDeSeleccionada.limitacion} kW` : undefined} />
+                        <CampoFicha label="Tipo limitación" value={fichaDeSeleccionada.tipoLimitacion} />
+                      </SeccionFicha>
+
+                      <SeccionFicha icon={<Phone size={12} />} title="CONTACTOS">
+                        <CampoFicha label="Nombre" value={fichaDeSeleccionada.contactoNombre} />
+                        <CampoFicha label="Teléfono" value={fichaDeSeleccionada.contactoTelefono} />
+                        <CampoFicha label="Distribuidora" value={fichaDeSeleccionada.contactoDistribuidora} />
+                        <CampoFicha label="Tel. distribuidora" value={fichaDeSeleccionada.telefonoDistribuidora} />
+                        <CampoFicha label="Emergencia" value={fichaDeSeleccionada.contactoEmergencia} />
+                      </SeccionFicha>
+
+                      {fichaDeSeleccionada.procedimientos && (
+                        <div className="space-y-1.5">
+                          <span className="font-mono text-xs text-slate-500 uppercase tracking-widest">Procedimientos</span>
+                          <p className="text-sm text-[var(--c-text)] whitespace-pre-wrap leading-relaxed">{fichaDeSeleccionada.procedimientos}</p>
+                        </div>
+                      )}
+
+                      {fichaDeSeleccionada.observaciones && (
+                        <div className="space-y-1.5">
+                          <span className="font-mono text-xs text-slate-500 uppercase tracking-widest">Observaciones</span>
+                          <p className="text-sm text-[var(--c-text)] whitespace-pre-wrap leading-relaxed">{fichaDeSeleccionada.observaciones}</p>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Sin ficha */}
+                  {!editandoFicha && !fichaDeSeleccionada && (
+                    <div className="flex flex-col items-center justify-center py-8 gap-2">
+                      <FileText size={24} className="text-slate-700" />
+                      <p className="font-mono text-xs text-slate-600 text-center">
+                        Sin ficha técnica registrada
+                        {!soloLectura && <span className="block text-slate-500 mt-0.5">Presiona &quot;Completar&quot; para agregarla</span>}
+                      </p>
+                    </div>
+                  )}
                 </div>
 
               </div>

@@ -1,6 +1,8 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
+import { db } from '@/lib/firebase';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { Moon, Zap, FileSpreadsheet, Upload, X, Download, Loader2 } from 'lucide-react';
 
 // ── Parsers ──
@@ -207,28 +209,72 @@ async function descargarIrradianciaLDN(rows: string[][], headers: string[], arch
   const ws = XLSX.utils.aoa_to_sheet([headers, ...dataFormateada]);
   aplicarFuente11(ws as Record<string, unknown>, XLSX.utils);
 
-  // Colorear en amarillo las filas donde col A contiene "01:00"
+  // Calcular inicio/fin dia desde los datos (cols B-F, índices 1-5)
+  let inicioDia: string | null = null;
+  let finDia: string | null = null;
+  let enPeriodoPositivo = false;
+  for (const row of dataFormateada) {
+    const time = String(row[0] ?? '');
+    const valores = (row.slice(1, 6) as (number | string)[])
+      .map(v => typeof v === 'number' ? v : parseFloat(String(v)))
+      .filter(v => !isNaN(v));
+    if (valores.length === 0) continue;
+    const todosPositivos = valores.every(v => v > 0);
+    const algunoNegativo = valores.some(v => v < 0);
+    if (!inicioDia && todosPositivos) { inicioDia = time; enPeriodoPositivo = true; }
+    if (enPeriodoPositivo && !finDia && algunoNegativo) { finDia = time; enPeriodoPositivo = false; }
+  }
+
+  // Colorear filas cada 15 min + col G promedio + apilar en col J
   const range = XLSX.utils.decode_range(ws['!ref'] || 'A1');
+  let jRow = 1; // col J empieza en r=1 (r=0 es header)
   for (let R = 1; R <= range.e.r; R++) {
     const celda = ws[XLSX.utils.encode_cell({ r: R, c: 0 })] as { v?: unknown; s?: Record<string, unknown> } | undefined;
-    if (typeof celda?.v === 'string' && celda.v.includes('01:15')) {
+    if (typeof celda?.v === 'string' && /:\d*(00|15|30|45)$/.test(celda.v)) {
       for (let C = 0; C <= range.e.c; C++) {
         const addr = XLSX.utils.encode_cell({ r: R, c: C });
         const cell = ws[addr] as { s?: Record<string, unknown> } | undefined;
         if (cell) cell.s = { ...(cell.s ?? {}), fill: { fgColor: { rgb: 'FFFF00' } } };
         else ws[addr] = { t: 'z', s: { fill: { fgColor: { rgb: 'FFFF00' } } } };
       }
-      // Promedio B:F en columna G de esta fila
       const excelRow = R + 1;
-      const addrG = XLSX.utils.encode_cell({ r: R, c: 6 });
-      ws[addrG] = { t: 'n', f: `AVERAGE(B${excelRow}:F${excelRow})`, s: { fill: { fgColor: { rgb: 'FFFF00' } }, font: { sz: 11 } } };
-      // Ampliar el rango del sheet si col G queda fuera
-      if (range.e.c < 6) {
-        range.e.c = 6;
-        ws['!ref'] = XLSX.utils.encode_range(range);
+      // Col G: promedio*10 en la fila original
+      ws[XLSX.utils.encode_cell({ r: R, c: 6 })] = { t: 'n', f: `AVERAGE(B${excelRow}:F${excelRow})*10`, s: { fill: { fgColor: { rgb: 'FFFF00' } }, font: { sz: 11 } } };
+      // Col J: apilar promedios secuencialmente, verde si positivo
+      const dataRow = dataFormateada[R - 1];
+      const vals = dataRow ? (dataRow.slice(1, 6) as (number | string)[]).map(v => typeof v === 'number' ? v : parseFloat(String(v))).filter(v => !isNaN(v)) : [];
+      const avg10 = vals.length > 0 ? (vals.reduce((a, b) => a + b, 0) / vals.length) * 10 : 0;
+      const jStyle = avg10 > 0
+        ? { font: { sz: 11 }, fill: { fgColor: { rgb: '00B050' } } }
+        : { font: { sz: 11 } };
+      ws[XLSX.utils.encode_cell({ r: jRow, c: 9 })] = { t: 'n', f: `AVERAGE(B${excelRow}:F${excelRow})*10`, s: jStyle };
+      jRow++;
+    }
+  }
+
+  // Colorear filas de inicio y fin de irradiancia en azul claro
+  const AZUL_CLARO = 'FF0000';
+  for (let R = 1; R <= range.e.r; R++) {
+    const celda = ws[XLSX.utils.encode_cell({ r: R, c: 0 })] as { v?: unknown; s?: Record<string, unknown> } | undefined;
+    const time = typeof celda?.v === 'string' ? celda.v : '';
+    if (time === inicioDia || time === finDia) {
+      for (let C = 0; C <= range.e.c; C++) {
+        const addr = XLSX.utils.encode_cell({ r: R, c: C });
+        const cell = ws[addr] as { s?: Record<string, unknown> } | undefined;
+        if (cell) cell.s = { ...(cell.s ?? {}), fill: { fgColor: { rgb: AZUL_CLARO } } };
+        else ws[addr] = { t: 'z', s: { fill: { fgColor: { rgb: AZUL_CLARO } } } };
       }
     }
   }
+
+  // Headers y valores cols J-L
+  range.e.c = Math.max(range.e.c, 11);
+  ws['!ref'] = XLSX.utils.encode_range(range);
+  ws[XLSX.utils.encode_cell({ r: 0, c: 9 })]  = { t: 's', v: 'Prom G',     s: { font: { bold: true, sz: 11 } } };
+  ws[XLSX.utils.encode_cell({ r: 0, c: 10 })] = { t: 's', v: 'Inicio dia', s: { font: { bold: true, sz: 11 } } };
+  ws[XLSX.utils.encode_cell({ r: 1, c: 10 })] = { t: 's', v: inicioDia ?? '-', s: { font: { sz: 11 } } };
+  ws[XLSX.utils.encode_cell({ r: 0, c: 11 })] = { t: 's', v: 'Fin dia',    s: { font: { bold: true, sz: 11 } } };
+  ws[XLSX.utils.encode_cell({ r: 1, c: 11 })] = { t: 's', v: finDia ?? '-',    s: { font: { sz: 11 } } };
 
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, 'Registros');
@@ -478,6 +524,129 @@ async function descargarCENCarbonFree(rows: string[][], headers: string[], archi
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, 'Registros');
   XLSX.writeFile(wb, `${archivo.name.replace(/\.[^.]+$/, '')}_cen.xlsx`, { cellStyles: true });
+}
+
+// ── PRUEBA: últimos valores F y G por hoja ──
+
+async function procesarUltimosFG(archivo: File, ultimaFila: number): Promise<void> {
+  const XLSX = await import('xlsx-js-style');
+  const buffer = await archivo.arrayBuffer();
+  const wbOrig = XLSX.read(new Uint8Array(buffer), { type: 'array' });
+  const wbNew = XLSX.utils.book_new();
+
+  const filaLimite = Math.max(Number(ultimaFila) || 2975, 1);
+
+  for (const sheetName of wbOrig.SheetNames) {
+    const ws = wbOrig.Sheets[sheetName];
+    const aoa = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' }) as unknown[][];
+
+    let lastF: unknown = 0;
+    let lastG: unknown = 0;
+    const limite = Math.min(filaLimite, aoa.length - 1);
+    for (let r = 1; r <= limite; r++) {
+      const row = aoa[r] as unknown[];
+      const fVal = row[5];
+      const gVal = row[6];
+      const fNum = typeof fVal === 'number' ? fVal : parseFloat(String(fVal ?? ''));
+      const gNum = typeof gVal === 'number' ? gVal : parseFloat(String(gVal ?? ''));
+      if (!isNaN(fNum) && fNum > 0) lastF = fVal;
+      if (!isNaN(gNum) && gNum > 0) lastG = gVal;
+    }
+
+    const wsNew = XLSX.utils.aoa_to_sheet([[lastF, lastG]]);
+    aplicarFuente11(wsNew as Record<string, unknown>, XLSX.utils);
+    XLSX.utils.book_append_sheet(wbNew, wsNew, sheetName);
+  }
+
+  if (wbNew.SheetNames.length === 0) throw new Error('No se encontraron hojas en el archivo.');
+  XLSX.writeFile(wbNew, `${archivo.name.replace(/\.[^.]+$/, '')}_ultimos_FG.xlsx`, { cellStyles: true });
+}
+
+function CardPrueba() {
+  const [archivo, setArchivo] = useState<File | null>(null);
+  const [procesando, setProcesando] = useState(false);
+  const [error, setError] = useState('');
+  const [ultimaFila, setUltimaFila] = useState(2975);
+  const [guardando, setGuardando] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    getDoc(doc(db, 'config', 'prueba_fg'))
+      .then(snap => { if (snap.exists()) setUltimaFila(snap.data().ultimaFila ?? 2975); })
+      .catch(() => {});
+  }, []);
+
+  const guardarUltimaFila = async (valor: number) => {
+    setGuardando(true);
+    try { await setDoc(doc(db, 'config', 'prueba_fg'), { ultimaFila: valor }); }
+    catch { /* silencioso */ }
+    finally { setGuardando(false); }
+  };
+
+  const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setError('');
+    setArchivo(e.target.files?.[0] ?? null);
+  };
+
+  const handleDescargar = async () => {
+    if (!archivo) return;
+    setProcesando(true);
+    setError('');
+    try {
+      await procesarUltimosFG(archivo, ultimaFila);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Error al procesar.');
+    } finally {
+      setProcesando(false);
+    }
+  };
+
+  return (
+    <div className="card-solar rounded-xl p-4">
+      <div className="flex items-center gap-2 mb-4">
+        <div className="w-7 h-7 rounded-lg bg-rose-500/10 border border-rose-500/20 flex items-center justify-center flex-shrink-0">
+          <FileSpreadsheet size={13} className="text-rose-400" />
+        </div>
+        <div>
+          <h3 className="font-display font-700 text-xs tracking-wider text-[var(--c-text)]">PRUEBA</h3>
+          <p className="font-mono text-[10px] text-slate-500">Últimos valores col F y G por hoja</p>
+        </div>
+      </div>
+
+      <div className="flex items-center gap-2 mb-3">
+        <label className="font-mono text-[10px] text-slate-400 whitespace-nowrap">Última fila</label>
+        <input
+          type="number"
+          value={ultimaFila}
+          onChange={e => setUltimaFila(Number(e.target.value))}
+          onBlur={e => guardarUltimaFila(Number(e.target.value))}
+          className="w-24 bg-slate-800 border border-slate-600 rounded px-2 py-1 font-mono text-[10px] text-slate-200 focus:outline-none focus:border-rose-400"
+        />
+        {guardando && <Loader2 size={11} className="animate-spin text-slate-500" />}
+      </div>
+
+      <label className="flex items-center gap-2 cursor-pointer border border-dashed border-slate-600 rounded-lg px-3 py-2 hover:border-rose-400/50 transition-colors mb-3">
+        <Upload size={13} className="text-slate-400 flex-shrink-0" />
+        <span className="font-mono text-[10px] text-slate-400 truncate">
+          {archivo ? archivo.name : 'Seleccionar Excel (.xlsx)'}
+        </span>
+        <input ref={fileRef} type="file" accept=".xlsx" className="hidden" onChange={handleFile} />
+      </label>
+
+      {archivo && (
+        <button
+          onClick={handleDescargar}
+          disabled={procesando}
+          className="w-full flex items-center justify-center gap-2 bg-rose-500/10 border border-rose-500/30 hover:bg-rose-500/20 text-rose-300 rounded-lg px-3 py-2 font-mono text-[10px] transition-colors disabled:opacity-50"
+        >
+          {procesando ? <Loader2 size={12} className="animate-spin" /> : <Download size={12} />}
+          {procesando ? 'Procesando...' : 'Descargar Excel'}
+        </button>
+      )}
+
+      {error && <p className="mt-2 font-mono text-[10px] text-red-400">{error}</p>}
+    </div>
+  );
 }
 
 // ── Card multi-archivo (Carbon Free) ──
@@ -942,6 +1111,7 @@ export default function InformesNocturnos() {
           </h3>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <CardPrueba />
           <CardInformeMulti
             titulo="ENERGÍA REAL METER — CARBON FREE"
             subtitulo="Procesamiento multi-archivo"

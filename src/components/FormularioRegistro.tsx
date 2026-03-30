@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { crearRegistro } from '@/lib/bitacora';
 import { RegistroBitacora, Planta, Cliente, CLIENTES, CAUSAS_CARBON_FREE, CAUSAS_MATRIX, TIPOS_ACONTECIMIENTO_SELECT } from '@/lib/types';
+import { useAuth } from '@/context/AuthContext';
 import { X, Sparkles, Loader2, Sun, Clock, Building2 } from 'lucide-react';
 
 interface Props {
@@ -31,6 +32,7 @@ const CLIENTE_ESTILOS: Record<Cliente, { activo: string; inactivo: string; dot: 
 };
 
 export default function FormularioRegistro({ onClose, onCreado, plantas, registroBase }: Props) {
+  const { usuario } = useAuth();
   const esClonacion = !!registroBase;
   const [tipoRegistro, setTipoRegistro] = useState<'planta' | 'oficina'>(registroBase?.tipo ?? 'planta');
   const [cliente, setCliente] = useState<Cliente>(registroBase?.cliente ?? 'Carbon Free');
@@ -103,7 +105,7 @@ export default function FormularioRegistro({ onClose, onCreado, plantas, registr
     }
     setCargando(true);
     try {
-      await crearRegistro(form);
+      await crearRegistro({ ...form, creadoPor: usuario?.nombre ?? usuario?.username ?? 'Desconocido' });
       onCreado();
       onClose();
     } catch {

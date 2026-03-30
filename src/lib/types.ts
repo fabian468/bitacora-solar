@@ -76,6 +76,7 @@ export interface RegistroBitacora {
   fechaFin: string;
   horaFin: string;
   estado?: 'resuelto' | 'pendiente';
+  creadoPor?: string;
   createdAt?: number;
 }
 
@@ -229,6 +230,21 @@ export const CAUSAS_MATRIX = [
   'Otra causa de origen externo',
   'Otra causa de origen interno',
 ];
+
+export interface Paso {
+  texto: string;
+  imagenes?: string[];
+}
+
+export interface Procedimiento {
+  id?: string;
+  titulo: string;
+  pasos: Paso[];
+  imagenes?: string[];
+  videos?: string[];
+  createdAt?: number;
+  updatedAt?: number;
+}
 
 export const TIPOS_ACONTECIMIENTO_SELECT = [
   'Apertura Planta',

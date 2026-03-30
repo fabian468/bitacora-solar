@@ -4,7 +4,7 @@ import { RegistroBitacora, Planta, CAUSAS_CARBON_FREE, CAUSAS_MATRIX, TIPOS_ACON
 import { eliminarRegistro, actualizarRegistro } from '@/lib/bitacora';
 import {
   Sun, Clock, AlertTriangle, FileText, Trash2, CalendarDays,
-  Pencil, X, Check, Loader2, ClipboardCopy, ClipboardCheck, Building2, Copy
+  Pencil, X, Check, Loader2, ClipboardCopy, ClipboardCheck, Building2, Copy, UserRound
 } from 'lucide-react';
 import { useState } from 'react';
 
@@ -474,6 +474,15 @@ export default function CardRegistro({ registro, plantas, onEliminado, onActuali
           </div>
         )}
       </div>
+
+      {registro.creadoPor && (
+        <div className="flex items-center gap-1.5 pt-2 mt-1 border-t border-[var(--c-border-sub)]">
+          <UserRound size={11} className="text-slate-600" />
+          <span className="font-mono text-xs text-slate-600">
+            Registrado por: <span className="text-slate-400">{registro.creadoPor}</span>
+          </span>
+        </div>
+      )}
     </div>
   );
 }
