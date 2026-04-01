@@ -122,7 +122,7 @@ export default function Informe({ registros }: Props) {
   const [tipoInforme, setTipoInforme] = useState<TipoInforme>('diario');
   const [fechaDesde, setFechaDesde] = useState(hoy);
   const [fechaHasta, setFechaHasta] = useState(hoy);
-  const [clienteFiltro, setClienteFiltro] = useState<'todos' | 'Carbon Free' | 'Matrix'>('todos');
+  const [clienteFiltro, setClienteFiltro] = useState<'todos' | 'Carbon Free' | 'Matrix' | 'Opde' | 'Eolicas'>('todos');
   const [generando, setGenerando] = useState(false);
   const [informe, setInforme] = useState('');
   const [error, setError] = useState('');
@@ -365,7 +365,7 @@ export default function Informe({ registros }: Props) {
 
         {/* Filtro cliente */}
         <div className="flex gap-2 mb-5">
-          {(['todos', 'Carbon Free', 'Matrix'] as const).map(c => (
+          {(['todos', 'Carbon Free', 'Matrix', 'Opde', 'Eolicas'] as const).map(c => (
             <button
               key={c}
               onClick={() => { setClienteFiltro(c); setInforme(''); setError(''); setGuardado(false); }}

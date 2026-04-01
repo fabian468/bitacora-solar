@@ -25,6 +25,20 @@ const COLORES: Record<Cliente, { bg: string; border: string; text: string; dot: 
     dot: 'bg-cyan-400',
     accent: 'rgba(0,212,255,0.12)',
   },
+  'Opde': {
+    bg: 'bg-orange-500/10',
+    border: 'border-orange-500/30',
+    text: 'text-orange-400',
+    dot: 'bg-orange-400',
+    accent: 'rgba(249,115,22,0.12)',
+  },
+  'Eolicas': {
+    bg: 'bg-violet-500/10',
+    border: 'border-violet-500/30',
+    text: 'text-violet-400',
+    dot: 'bg-violet-400',
+    accent: 'rgba(139,92,246,0.12)',
+  },
 };
 
 
@@ -303,7 +317,7 @@ export default function GestionDespachos({ soloLectura = false }: { soloLectura?
           {(() => {
             const d = despachoSeleccionado;
             const col = COLORES[d.cliente];
-            const accentSolid = d.cliente === 'Carbon Free' ? 'rgba(34,197,94,0.7)' : 'rgba(0,212,255,0.65)';
+            const accentSolid = d.cliente === 'Carbon Free' ? 'rgba(34,197,94,0.7)' : d.cliente === 'Matrix' ? 'rgba(0,212,255,0.65)' : d.cliente === 'Opde' ? 'rgba(249,115,22,0.7)' : 'rgba(139,92,246,0.7)';
             return (
               <div className="bg-[var(--c-card)] border border-[var(--c-border)] rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden">
 

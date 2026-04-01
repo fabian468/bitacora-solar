@@ -15,7 +15,9 @@ import {
 
 const COLORES: Record<Cliente, { bg: string; border: string; text: string; dot: string }> = {
   'Carbon Free': { bg: 'bg-green-500/10', border: 'border-green-500/30', text: 'text-green-400', dot: 'bg-green-400' },
-  'Matrix':      { bg: 'bg-cyan-500/10',  border: 'border-cyan-500/30',  text: 'text-cyan-400',  dot: 'bg-cyan-400'  },
+  'Matrix':      { bg: 'bg-cyan-500/10',    border: 'border-cyan-500/30',    text: 'text-cyan-400',    dot: 'bg-cyan-400'    },
+  'Opde':        { bg: 'bg-orange-500/10',  border: 'border-orange-500/30',  text: 'text-orange-400',  dot: 'bg-orange-400'  },
+  'Eolicas':     { bg: 'bg-violet-500/10', border: 'border-violet-500/30', text: 'text-violet-400', dot: 'bg-violet-400' },
 };
 
 const TIPOS_PLANTA: { value: TipoPlanta; icon: React.ReactNode; color: string }[] = [
@@ -33,6 +35,7 @@ const FICHA_VACIA = (plantaNombre: string, cliente: Cliente): FichaPlanta => ({
   numStrings: '', tecnologia: '',
   tensionAlimentador: '', capacidadAlimentador: '', tensionTrabajoMin: '', tensionTrabajoMax: '',
   limitacion: '', tipoLimitacion: '',
+  inyeccionReactivaMax: '', inyeccionReactivaMin: '', absorcionReactivaMax: '', absorcionReactivaMin: '',
   contactoNombre: '', contactoTelefono: '', contactoDistribuidora: '',
   telefonoDistribuidora: '', contactoEmergencia: '',
   procedimientos: '', observaciones: '',
@@ -451,7 +454,7 @@ export default function GestionPlantas({ soloLectura = false }: { soloLectura?: 
       {plantaSeleccionada && (() => {
         const p = plantaSeleccionada;
         const col = COLORES[p.cliente];
-        const accentColor = p.cliente === 'Carbon Free' ? 'rgba(34,197,94,0.7)' : 'rgba(0,212,255,0.65)';
+        const accentColor = p.cliente === 'Carbon Free' ? 'rgba(34,197,94,0.7)' : p.cliente === 'Matrix' ? 'rgba(0,212,255,0.65)' : p.cliente === 'Opde' ? 'rgba(249,115,22,0.7)' : 'rgba(139,92,246,0.7)';
 
         return (
           <div

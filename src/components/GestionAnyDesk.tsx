@@ -11,7 +11,9 @@ import {
 
 const COLORES: Record<Cliente, { bg: string; border: string; text: string; dot: string }> = {
   'Carbon Free': { bg: 'bg-green-500/10', border: 'border-green-500/30', text: 'text-green-400', dot: 'bg-green-400' },
-  'Matrix':      { bg: 'bg-cyan-500/10',  border: 'border-cyan-500/30',  text: 'text-cyan-400',  dot: 'bg-cyan-400'  },
+  'Matrix':      { bg: 'bg-cyan-500/10',    border: 'border-cyan-500/30',    text: 'text-cyan-400',    dot: 'bg-cyan-400'    },
+  'Opde':        { bg: 'bg-orange-500/10',  border: 'border-orange-500/30',  text: 'text-orange-400',  dot: 'bg-orange-400'  },
+  'Eolicas':     { bg: 'bg-violet-500/10', border: 'border-violet-500/30', text: 'text-violet-400', dot: 'bg-violet-400' },
 };
 
 export default function GestionAnyDesk({ soloLectura = false }: { soloLectura?: boolean }) {

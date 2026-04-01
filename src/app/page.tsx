@@ -19,13 +19,15 @@ import GestionUsuarios from '@/components/GestionUsuarios';
 import FichasTecnicas from '@/components/FichasTecnicas';
 import Procedimientos from '@/components/Procedimientos';
 import BuscadorGlobal from '@/components/BuscadorGlobal';
+import Dashboard from '@/components/Dashboard';
+import { obtenerConfig } from '@/lib/dashboard';
 import {
   Sun, Plus, RefreshCw, Search, Zap, Activity,
   BookOpen, FileText, LayoutDashboard, Building2, Bell, Truck, Monitor,
-  Moon, X, Users, LogOut, ShieldCheck, ClipboardList, Star, BookMarked
+  Moon, X, Users, LogOut, ShieldCheck, ClipboardList, Star, BookMarked, BarChart2
 } from 'lucide-react';
 
-type Vista = 'bitacora' | 'informe' | 'plantas' | 'despachos' | 'anydesk' | 'alertas' | 'nocturnos' | 'usuarios' | 'fichas' | 'procedimientos';
+type Vista = 'dashboard' | 'bitacora' | 'informe' | 'plantas' | 'despachos' | 'anydesk' | 'alertas' | 'nocturnos' | 'usuarios' | 'fichas' | 'procedimientos';
 
 const CLIENTE_COLORES: Record<Cliente, { activo: string; inactivo: string; dot: string }> = {
   'Carbon Free': {
@@ -37,6 +39,16 @@ const CLIENTE_COLORES: Record<Cliente, { activo: string; inactivo: string; dot: 
     activo: 'bg-cyan-500/15 border-cyan-500/40 text-cyan-400',
     inactivo: 'border-[var(--c-border-sub)] text-slate-500 hover:border-cyan-500/30 hover:text-cyan-400',
     dot: 'bg-cyan-400',
+  },
+  'Opde': {
+    activo: 'bg-orange-500/15 border-orange-500/40 text-orange-400',
+    inactivo: 'border-[var(--c-border-sub)] text-slate-500 hover:border-orange-500/30 hover:text-orange-400',
+    dot: 'bg-orange-400',
+  },
+  'Eolicas': {
+    activo: 'bg-violet-500/15 border-violet-500/40 text-violet-400',
+    inactivo: 'border-[var(--c-border-sub)] text-slate-500 hover:border-violet-500/30 hover:text-violet-400',
+    dot: 'bg-violet-400',
   },
 };
 
@@ -59,6 +71,7 @@ export default function Home() {
   const [temaOscuro, setTemaOscuro] = useState(true);
   const [mostrarBuscador, setMostrarBuscador] = useState(false);
   const [pagina, setPagina] = useState(1);
+  const [fotosHabilitadas, setFotosHabilitadas] = useState(true);
   const POR_PAGINA = 12;
 
   useEffect(() => {
@@ -94,7 +107,10 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
-    if (usuario) cargar();
+    if (usuario) {
+      cargar();
+      obtenerConfig().then(c => setFotosHabilitadas(c.fotosHabilitadas ?? true));
+    }
   }, [usuario, cargar]);
 
   useEffect(() => {
@@ -161,6 +177,7 @@ export default function Home() {
 
   // Tabs disponibles según rol
   const tabs = [
+    { key: 'dashboard', label: 'DASHBOARD', icon: <BarChart2 size={13} /> },
     { key: 'bitacora', label: 'BITÁCORA', icon: <LayoutDashboard size={13} /> },
     { key: 'informe', label: 'INFORMES', icon: <FileText size={13} /> },
     { key: 'plantas', label: 'PLANTAS', icon: <Building2 size={13} /> },
@@ -330,6 +347,16 @@ export default function Home() {
       {/* ── MAIN ── */}
       <main className="max-w-6xl mx-auto px-3 sm:px-6 py-5 sm:py-8">
 
+        {/* ── VISTA DASHBOARD ── */}
+        {vista === 'dashboard' && (
+          <Dashboard
+            registros={registros}
+            plantas={plantas}
+            esAdmin={esAdmin}
+            onConfigChange={() => obtenerConfig().then(c => setFotosHabilitadas(c.fotosHabilitadas ?? true))}
+          />
+        )}
+
         {/* ── VISTA BITÁCORA ── */}
         {vista === 'bitacora' && (
           <>
@@ -490,6 +517,8 @@ export default function Home() {
                         onEliminado={cargar}
                         onActualizado={cargar}
                         onClonar={reg => { setRegistroAclonar(reg); setMostrarForm(true); }}
+                        fotosHabilitadas={fotosHabilitadas}
+                        esAdmin={esAdmin}
                       />
                     </div>
                   ))}
@@ -605,6 +634,8 @@ export default function Home() {
           onCreado={() => { cargar(); setRegistroAclonar(undefined); }}
           plantas={plantas}
           registroBase={registroAclonar}
+          fotosHabilitadas={fotosHabilitadas}
+          esAdmin={esAdmin}
         />
       )}
 

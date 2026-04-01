@@ -63,6 +63,7 @@ function FormModal({ procedimiento, onClose, onGuardado }: {
   onGuardado: () => void;
 }) {
   const [titulo, setTitulo] = useState(procedimiento?.titulo ?? '');
+  const [empresa, setEmpresa] = useState(procedimiento?.empresa ?? '');
   const [pasos, setPasos] = useState<PasoForm[]>(() => pasosAForm(procedimiento?.pasos ?? []));
   const [imagenesGlobExist, setImagenesGlobExist] = useState<string[]>(procedimiento?.imagenes ?? []);
   const [videosExist, setVideosExist] = useState<string[]>(procedimiento?.videos ?? []);
@@ -70,8 +71,6 @@ function FormModal({ procedimiento, onClose, onGuardado }: {
   const [guardando, setGuardando] = useState(false);
   const [progreso, setProgreso] = useState(0);
   const [error, setError] = useState('');
-  const vidRef = useRef<HTMLInputElement>(null);
-  const imgRefs = useRef<(HTMLInputElement | null)[]>([]);
   const textareaRefs = useRef<(HTMLTextAreaElement | null)[]>([]);
 
   const esEdicion = !!procedimiento?.id;
@@ -164,10 +163,11 @@ function FormModal({ procedimiento, onClose, onGuardado }: {
       const imagenes = imagenesGlobExist;
       const videos = [...videosExist, ...urlsVid];
 
+      const empresaVal = empresa.trim() || undefined;
       if (esEdicion && procedimiento.id) {
-        await actualizarProcedimiento(procedimiento.id, { titulo, pasos: pasosFinales, imagenes, videos });
+        await actualizarProcedimiento(procedimiento.id, { titulo, empresa: empresaVal, pasos: pasosFinales, imagenes, videos });
       } else {
-        await crearProcedimiento({ titulo, pasos: pasosFinales, imagenes, videos });
+        await crearProcedimiento({ titulo, empresa: empresaVal, pasos: pasosFinales, imagenes, videos });
       }
       onGuardado();
       onClose();
@@ -209,6 +209,21 @@ function FormModal({ procedimiento, onClose, onGuardado }: {
             />
           </div>
 
+          {/* Empresa */}
+          <div>
+            <label className="block font-mono text-xs text-slate-500 mb-1.5 tracking-wider">EMPRESA</label>
+            <div className="relative">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-amber-400/60 font-mono text-sm select-none">@</span>
+              <input
+                type="text"
+                value={empresa}
+                onChange={e => setEmpresa(e.target.value)}
+                placeholder="ej: reactivos san juan"
+                className="input-solar w-full rounded-xl pl-8 pr-4 py-2.5 text-sm"
+              />
+            </div>
+          </div>
+
           {/* Pasos */}
           <div>
             <div className="flex items-center justify-between mb-2">
@@ -246,19 +261,16 @@ function FormModal({ procedimiento, onClose, onGuardado }: {
 
                     <div className="flex flex-col gap-1 flex-shrink-0 mt-1">
                       {/* Foto en este paso */}
-                      <button
-                        type="button"
-                        onClick={() => imgRefs.current[i]?.click()}
-                        className="p-1.5 rounded-lg text-slate-600 hover:text-amber-400 hover:bg-amber-500/10 transition-all"
+                      <label
+                        className="p-1.5 rounded-lg text-slate-600 hover:text-amber-400 hover:bg-amber-500/10 transition-all cursor-pointer"
                         title="Agregar foto a este paso"
                       >
                         <Image size={13} />
-                      </button>
-                      <input
-                        ref={el => { imgRefs.current[i] = el; }}
-                        type="file" accept="image/*" multiple className="hidden"
-                        onChange={e => { if (e.target.files) agregarImagenesPaso(i, e.target.files); e.target.value = ''; }}
-                      />
+                        <input
+                          type="file" accept="image/*" multiple className="hidden"
+                          onChange={e => { if (e.target.files) agregarImagenesPaso(i, e.target.files); e.target.value = ''; }}
+                        />
+                      </label>
                       {/* Agregar paso */}
                       <button
                         onClick={() => agregarPaso(i)}
@@ -325,15 +337,13 @@ function FormModal({ procedimiento, onClose, onGuardado }: {
           {/* Videos globales */}
           <div>
             <label className="block font-mono text-xs text-slate-500 mb-1.5 tracking-wider">VIDEOS</label>
-            <button
-              type="button"
-              onClick={() => vidRef.current?.click()}
-              className="btn-ghost px-4 py-2 rounded-xl text-xs flex items-center gap-2 border border-dashed border-[var(--c-border-sub)] hover:border-cyan-500/40 hover:text-cyan-400 transition-all w-full justify-center"
+            <label
+              className="btn-ghost px-4 py-2 rounded-xl text-xs flex items-center gap-2 border border-dashed border-[var(--c-border-sub)] hover:border-cyan-500/40 hover:text-cyan-400 transition-all w-full justify-center cursor-pointer"
             >
               <Video size={13} /> Seleccionar videos
-            </button>
-            <input ref={vidRef} type="file" accept="video/*" multiple className="hidden"
-              onChange={e => { if (e.target.files) setNuevosVideos(prev => [...prev, ...Array.from(e.target.files!)]); e.target.value = ''; }} />
+              <input type="file" accept="video/*" multiple className="hidden"
+                onChange={e => { if (e.target.files) setNuevosVideos(prev => [...prev, ...Array.from(e.target.files!)]); e.target.value = ''; }} />
+            </label>
 
             {(videosExist.length > 0 || nuevosVideos.length > 0) && (
               <div className="grid grid-cols-2 gap-2 mt-3">
@@ -418,7 +428,12 @@ function VerModal({ proc, soloLectura, onClose, onEditar }: {
         <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--c-border-sub)] sticky top-0 bg-[var(--c-bg)] z-10">
           <div className="flex items-center gap-2 min-w-0">
             <BookMarked size={16} className="text-amber-400 flex-shrink-0" />
-            <h2 className="font-display font-700 text-sm tracking-wide text-[var(--c-text)] truncate">{proc.titulo}</h2>
+            <div className="min-w-0">
+              <h2 className="font-display font-700 text-sm tracking-wide text-[var(--c-text)] truncate">{proc.titulo}</h2>
+              {proc.empresa && (
+                <p className="font-mono text-xs text-amber-400/60 truncate">@{proc.empresa.toLowerCase()}</p>
+              )}
+            </div>
           </div>
           <div className="flex items-center gap-2 flex-shrink-0">
             {!soloLectura && (
@@ -527,9 +542,14 @@ function CardProcedimiento({ proc, soloLectura, onVer, onEditar, onEliminar }: {
 
       <div className="p-4 space-y-3">
         <div className="flex items-start justify-between gap-2">
-          <h3 className="font-display font-600 text-sm text-[var(--c-text)] leading-snug line-clamp-2 flex-1">
-            {proc.titulo}
-          </h3>
+          <div className="flex-1 min-w-0">
+            <h3 className="font-display font-600 text-sm text-[var(--c-text)] leading-snug line-clamp-2">
+              {proc.titulo}
+            </h3>
+            {proc.empresa && (
+              <p className="font-mono text-xs text-amber-400/60 mt-0.5 truncate">@{proc.empresa.toLowerCase()}</p>
+            )}
+          </div>
           <div className="flex items-center gap-1.5 flex-shrink-0">
             {nImgsPasos > 0 && (
               <span className="flex items-center gap-0.5 font-mono text-xs text-slate-500">
@@ -625,11 +645,15 @@ export default function Procedimientos({ soloLectura = false }: { soloLectura?: 
     catch { setError('Error al eliminar el procedimiento.'); }
   };
 
-  const filtrados = procedimientos.filter(p =>
-    !busqueda ||
-    p.titulo.toLowerCase().includes(busqueda.toLowerCase()) ||
-    (p.pasos ?? []).some(s => s.texto.toLowerCase().includes(busqueda.toLowerCase())),
-  );
+  const filtrados = procedimientos.filter(p => {
+    if (!busqueda) return true;
+    const q = busqueda.toLowerCase();
+    return (
+      p.titulo.toLowerCase().includes(q) ||
+      (p.empresa ?? '').toLowerCase().includes(q) ||
+      (p.pasos ?? []).some(s => s.texto.toLowerCase().includes(q))
+    );
+  });
 
   return (
     <div>

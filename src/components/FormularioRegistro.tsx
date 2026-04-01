@@ -1,16 +1,19 @@
 'use client';
 // src/components/FormularioRegistro.tsx
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { crearRegistro } from '@/lib/bitacora';
-import { RegistroBitacora, Planta, Cliente, CLIENTES, CAUSAS_CARBON_FREE, CAUSAS_MATRIX, TIPOS_ACONTECIMIENTO_SELECT } from '@/lib/types';
+import { RegistroBitacora, Planta, Cliente, CLIENTES, CAUSAS_CARBON_FREE, CAUSAS_MATRIX, CAUSAS_OPDE, CAUSAS_EOLICAS, TIPOS_ACONTECIMIENTO_SELECT } from '@/lib/types';
+import { subirFotoBitacora } from '@/lib/fotos';
 import { useAuth } from '@/context/AuthContext';
-import { X, Sparkles, Loader2, Sun, Clock, Building2 } from 'lucide-react';
+import { X, Sparkles, Loader2, Sun, Clock, Building2, Image as ImageIcon, Upload } from 'lucide-react';
 
 interface Props {
   onClose: () => void;
   onCreado: () => void;
   plantas: Planta[];
   registroBase?: RegistroBitacora;
+  fotosHabilitadas: boolean;
+  esAdmin: boolean;
 }
 
 type CampoAI = 'acontecimiento' | 'causa' | 'detalle';
@@ -29,9 +32,19 @@ const CLIENTE_ESTILOS: Record<Cliente, { activo: string; inactivo: string; dot: 
     inactivo: 'border-[var(--c-border)] text-slate-500 hover:border-cyan-500/30 hover:text-cyan-400',
     dot: 'bg-cyan-400',
   },
+  'Opde': {
+    activo: 'bg-orange-500/20 border-orange-500/50 text-orange-400',
+    inactivo: 'border-[var(--c-border)] text-slate-500 hover:border-orange-500/30 hover:text-orange-400',
+    dot: 'bg-orange-400',
+  },
+  'Eolicas': {
+    activo: 'bg-violet-500/20 border-violet-500/50 text-violet-400',
+    inactivo: 'border-[var(--c-border)] text-slate-500 hover:border-violet-500/30 hover:text-violet-400',
+    dot: 'bg-violet-400',
+  },
 };
 
-export default function FormularioRegistro({ onClose, onCreado, plantas, registroBase }: Props) {
+export default function FormularioRegistro({ onClose, onCreado, plantas, registroBase, fotosHabilitadas, esAdmin }: Props) {
   const { usuario } = useAuth();
   const esClonacion = !!registroBase;
   const [tipoRegistro, setTipoRegistro] = useState<'planta' | 'oficina'>(registroBase?.tipo ?? 'planta');
@@ -52,6 +65,12 @@ export default function FormularioRegistro({ onClose, onCreado, plantas, registr
   const [cargando, setCargando] = useState(false);
   const [mejorando, setMejorando] = useState<CampoAI | null>(null);
   const [error, setError] = useState('');
+
+  // Fotos
+  const [nuevasFotos, setNuevasFotos] = useState<File[]>([]);
+  const [progresoFotos, setProgresoFotos] = useState(0);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const canUpload = fotosHabilitadas || esAdmin;
 
   // Plantas filtradas por cliente seleccionado
   const plantasFiltradas = plantas.filter(p => p.cliente === cliente);
@@ -105,7 +124,23 @@ export default function FormularioRegistro({ onClose, onCreado, plantas, registr
     }
     setCargando(true);
     try {
-      await crearRegistro({ ...form, creadoPor: usuario?.nombre ?? usuario?.username ?? 'Desconocido' });
+      // Subir fotos a Cloudinary si hay
+      let fotos: string[] = [];
+      if (nuevasFotos.length > 0) {
+        let subidas = 0;
+        fotos = await Promise.all(
+          nuevasFotos.map(f =>
+            subirFotoBitacora(f, pct => {
+              setProgresoFotos(Math.round(((subidas + pct / 100) / nuevasFotos.length) * 100));
+            }).then(url => { subidas++; return url; }),
+          ),
+        );
+      }
+      await crearRegistro({
+        ...form,
+        fotos,
+        creadoPor: usuario?.nombre ?? usuario?.username ?? 'Desconocido',
+      });
       onCreado();
       onClose();
     } catch {
@@ -300,6 +335,28 @@ export default function FormularioRegistro({ onClose, onCreado, plantas, registr
                   <option key={c} value={c}>{c}</option>
                 ))}
               </select>
+            ) : cliente === 'Opde' && tipoRegistro !== 'oficina' ? (
+              <select
+                value={form.causa}
+                onChange={e => set('causa', e.target.value)}
+                className="input-solar w-full rounded-lg px-3 py-2 text-sm"
+              >
+                <option value="">Selecciona la causa...</option>
+                {CAUSAS_OPDE.map(c => (
+                  <option key={c} value={c}>{c}</option>
+                ))}
+              </select>
+            ) : cliente === 'Eolicas' && tipoRegistro !== 'oficina' ? (
+              <select
+                value={form.causa}
+                onChange={e => set('causa', e.target.value)}
+                className="input-solar w-full rounded-lg px-3 py-2 text-sm"
+              >
+                <option value="">Selecciona la causa...</option>
+                {CAUSAS_EOLICAS.map(c => (
+                  <option key={c} value={c}>{c}</option>
+                ))}
+              </select>
             ) : (
               <div className="flex items-start gap-2">
                 <textarea
@@ -392,6 +449,62 @@ export default function FormularioRegistro({ onClose, onCreado, plantas, registr
             </div>
           </div>
 
+          {/* ── Fotos ── */}
+          {canUpload ? (
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-display uppercase tracking-widest text-slate-400 flex items-center gap-1.5">
+                  <ImageIcon size={11} /> Fotos adjuntas {nuevasFotos.length > 0 && `(${nuevasFotos.length})`}
+                </label>
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="flex items-center gap-1.5 text-xs font-mono text-amber-400 hover:text-amber-300 border border-amber-500/30 hover:border-amber-400/50 px-2.5 py-1 rounded-lg transition-all"
+                >
+                  <Upload size={11} /> Agregar fotos
+                </button>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  className="hidden"
+                  onChange={e => {
+                    const files = Array.from(e.target.files ?? []);
+                    if (files.length) setNuevasFotos(p => [...p, ...files]);
+                    e.target.value = '';
+                  }}
+                />
+              </div>
+              {nuevasFotos.length > 0 && (
+                <div className="grid grid-cols-4 gap-1.5">
+                  {nuevasFotos.map((file, i) => (
+                    <FormFotoPreview
+                      key={i}
+                      file={file}
+                      onRemove={() => setNuevasFotos(p => p.filter((_, j) => j !== i))}
+                    />
+                  ))}
+                </div>
+              )}
+              {cargando && nuevasFotos.length > 0 && (
+                <div className="space-y-1">
+                  <div className="h-1 bg-[var(--c-bg)] rounded-full overflow-hidden">
+                    <div className="h-full bg-amber-500 rounded-full transition-all" style={{ width: `${progresoFotos}%` }} />
+                  </div>
+                  <p className="font-mono text-xs text-amber-400">Subiendo fotos... {progresoFotos}%</p>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="flex items-center gap-2 bg-slate-800/40 border border-slate-700/50 rounded-xl px-4 py-3">
+              <ImageIcon size={14} className="text-slate-600 flex-shrink-0" />
+              <p className="font-mono text-xs text-slate-500">
+                Subida de fotos bloqueada por el administrador
+              </p>
+            </div>
+          )}
+
           {error && (
             <p className="text-red-400 text-sm bg-red-400/10 border border-red-400/30 rounded-lg px-3 py-2">
               {error}
@@ -415,6 +528,29 @@ export default function FormularioRegistro({ onClose, onCreado, plantas, registr
 
         </div>
       </div>
+    </div>
+  );
+}
+
+// ── Preview foto local para formulario de creación ────────────────────────────
+function FormFotoPreview({ file, onRemove }: { file: File; onRemove: () => void }) {
+  const [src, setSrc] = useState('');
+  useEffect(() => {
+    const url = URL.createObjectURL(file);
+    setSrc(url);
+    return () => URL.revokeObjectURL(url);
+  }, [file]);
+  return (
+    <div className="relative group">
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src={src} alt={file.name} className="w-full h-20 object-cover rounded-lg" />
+      <button
+        type="button"
+        onClick={onRemove}
+        className="absolute top-0.5 right-0.5 bg-black/70 text-white rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
+      >
+        <X size={10} />
+      </button>
     </div>
   );
 }

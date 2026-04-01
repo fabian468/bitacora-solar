@@ -1,6 +1,6 @@
 // src/lib/types.ts
 
-export type Cliente = 'Carbon Free' | 'Matrix';
+export type Cliente = 'Carbon Free' | 'Matrix' | 'Opde' | 'Eolicas';
 
 export type RolUsuario = 'admin' | 'operador';
 
@@ -42,6 +42,12 @@ export interface FichaPlanta {
   limitacion?: string;            // kW
   tipoLimitacion?: string;
 
+  // Reactivos
+  inyeccionReactivaMax?: string;  // MVAr
+  inyeccionReactivaMin?: string;  // MVAr
+  absorcionReactivaMax?: string;  // MVAr
+  absorcionReactivaMin?: string;  // MVAr
+
   // Contactos
   contactoNombre?: string;
   contactoTelefono?: string;
@@ -76,11 +82,12 @@ export interface RegistroBitacora {
   fechaFin: string;
   horaFin: string;
   estado?: 'resuelto' | 'pendiente';
+  fotos?: string[];
   creadoPor?: string;
   createdAt?: number;
 }
 
-export const CLIENTES: Cliente[] = ['Carbon Free', 'Matrix'];
+export const CLIENTES: Cliente[] = ['Carbon Free', 'Matrix', 'Opde', 'Eolicas'];
 
 export interface Despacho {
   id?: string;
@@ -239,12 +246,68 @@ export interface Paso {
 export interface Procedimiento {
   id?: string;
   titulo: string;
+  empresa?: string;
   pasos: Paso[];
   imagenes?: string[];
   videos?: string[];
   createdAt?: number;
   updatedAt?: number;
 }
+
+export const CAUSAS_OPDE = [
+  'Corte de energía',
+  'Desconexión programada mayor a 24 horas',
+  'Desconexión programada menor a 24 horas',
+  'Distribuidora no autoriza ingreso de PMGD',
+  'Falla de la unidad generadora',
+  'Falla en red de distribución y/o transmisión',
+  'Fenómenos naturales que afectan instalaciones propias',
+  'Fenómenos naturales externos',
+  'Mantenimiento en red de distribución y/o transmisión',
+  'Mantenimiento preventivo',
+  'Mantenimiento correctivo',
+  'Puesta en marcha, ajustes y/o pruebas',
+  'Trabajos realizados por terceros',
+  'Revisión de equipos',
+  'Limitación de potencia',
+  'Falla de inversor',
+  'Falla de comunicación',
+  'Falla tracker',
+  'Baja generación',
+  'Otra causa de origen externo',
+  'Otra causa de origen interno',
+];
+
+export const CAUSAS_EOLICAS = [
+  'Corte de energía',
+  'Desconexión programada mayor a 24 horas',
+  'Desconexión programada menor a 24 horas',
+  'Distribuidora no autoriza ingreso',
+  'Falla de la unidad generadora',
+  'Falla en red de distribución y/o transmisión',
+  'Fenómenos naturales que afectan instalaciones propias',
+  'Fenómenos naturales externos',
+  'High Wind — Viento sobre límite operacional',
+  'Low Wind — Viento bajo velocidad de arranque',
+  'Mantenimiento en red de distribución y/o transmisión',
+  'Mantenimiento preventivo',
+  'Mantenimiento correctivo',
+  'Falla de pitch',
+  'Falla de yaw',
+  'Falla de convertidor',
+  'Falla de generador',
+  'Falla de caja multiplicadora',
+  'Falla de sistema hidráulico',
+  'Falla de freno',
+  'Falla de sistema de control',
+  'Falla de comunicación SCADA',
+  'Vibración excesiva',
+  'Puesta en marcha, ajustes y/o pruebas',
+  'Trabajos realizados por terceros',
+  'Restricción de red',
+  'Otra causa de origen externo',
+  'Otra causa de origen interno',
+];
 
 export const TIPOS_ACONTECIMIENTO_SELECT = [
   'Apertura Planta',

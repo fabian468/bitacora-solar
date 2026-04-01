@@ -12,7 +12,9 @@ import {
 
 const COLORES: Record<Cliente, { bg: string; border: string; text: string; dot: string }> = {
   'Carbon Free': { bg: 'bg-green-500/10', border: 'border-green-500/30', text: 'text-green-400', dot: 'bg-green-400' },
-  'Matrix':      { bg: 'bg-cyan-500/10',  border: 'border-cyan-500/30',  text: 'text-cyan-400',  dot: 'bg-cyan-400'  },
+  'Matrix':      { bg: 'bg-cyan-500/10',    border: 'border-cyan-500/30',    text: 'text-cyan-400',    dot: 'bg-cyan-400'    },
+  'Opde':        { bg: 'bg-orange-500/10',  border: 'border-orange-500/30',  text: 'text-orange-400',  dot: 'bg-orange-400'  },
+  'Eolicas':     { bg: 'bg-violet-500/10', border: 'border-violet-500/30', text: 'text-violet-400', dot: 'bg-violet-400' },
 };
 
 const TIPOS_PLANTA: { value: TipoPlanta; icon: React.ReactNode; color: string }[] = [
@@ -88,6 +90,7 @@ const FICHA_VACIA = (plantaNombre: string, cliente: Cliente): FichaPlanta => ({
   numStrings: '', tecnologia: '',
   tensionAlimentador: '', capacidadAlimentador: '', tensionTrabajoMin: '', tensionTrabajoMax: '',
   limitacion: '', tipoLimitacion: '',
+  inyeccionReactivaMax: '', inyeccionReactivaMin: '', absorcionReactivaMax: '', absorcionReactivaMin: '',
   contactoNombre: '', contactoTelefono: '', contactoDistribuidora: '',
   telefonoDistribuidora: '', contactoEmergencia: '',
   procedimientos: '', observaciones: '',
@@ -283,7 +286,7 @@ export default function FichasTecnicas({ soloLectura = false }: { soloLectura?: 
       {plantaSeleccionada && fichaDatos && (() => {
         const p = plantaSeleccionada;
         const col = COLORES[p.cliente];
-        const accentColor = p.cliente === 'Carbon Free' ? 'rgba(34,197,94,0.7)' : 'rgba(0,212,255,0.65)';
+        const accentColor = p.cliente === 'Carbon Free' ? 'rgba(34,197,94,0.7)' : p.cliente === 'Matrix' ? 'rgba(0,212,255,0.65)' : p.cliente === 'Opde' ? 'rgba(249,115,22,0.7)' : 'rgba(139,92,246,0.7)';
 
         return (
           <div
@@ -449,6 +452,17 @@ export default function FichasTecnicas({ soloLectura = false }: { soloLectura?: 
                       <InputField label="Limitación de potencia" value={form?.limitacion ?? ''} onChange={set('limitacion')} placeholder="ej: 3500 kW" mono />
                       <InputField label="Tipo de limitación" value={form?.tipoLimitacion ?? ''} onChange={set('tipoLimitacion')} placeholder="ej: Por despacho" />
                     </div>
+
+                    {/* Reactivos */}
+                    <div className="flex items-center gap-2 pt-1">
+                      <span className="font-mono text-xs text-slate-500 uppercase tracking-widest">Reactivos (MVAr)</span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <InputField label="Máx. inyección reactiva" value={form?.inyeccionReactivaMax ?? ''} onChange={set('inyeccionReactivaMax')} placeholder="ej: 2.5 MVAr" mono />
+                      <InputField label="Mín. inyección reactiva" value={form?.inyeccionReactivaMin ?? ''} onChange={set('inyeccionReactivaMin')} placeholder="ej: 0 MVAr" mono />
+                      <InputField label="Máx. absorción reactiva" value={form?.absorcionReactivaMax ?? ''} onChange={set('absorcionReactivaMax')} placeholder="ej: 2.5 MVAr" mono />
+                      <InputField label="Mín. absorción reactiva" value={form?.absorcionReactivaMin ?? ''} onChange={set('absorcionReactivaMin')} placeholder="ej: 0 MVAr" mono />
+                    </div>
                   </div>
                 ) : (
                   <div className="space-y-3">
@@ -482,6 +496,41 @@ export default function FichasTecnicas({ soloLectura = false }: { soloLectura?: 
                             {fichaDatos.limitacion}{fichaDatos.tipoLimitacion ? ` — ${fichaDatos.tipoLimitacion}` : ''}
                           </span>
                         </div>
+                      )}
+
+                      {/* Reactivos */}
+                      {(fichaDatos.inyeccionReactivaMax || fichaDatos.inyeccionReactivaMin ||
+                        fichaDatos.absorcionReactivaMax || fichaDatos.absorcionReactivaMin) && (
+                        <>
+                          <div className="col-span-2">
+                            <span className="font-mono text-xs text-slate-500 uppercase tracking-widest">Inyección reactiva</span>
+                            <div className="flex items-center gap-2 mt-1.5">
+                              <div className="flex-1 bg-[var(--c-inner)] border border-[var(--c-border-sub)] rounded-lg px-3 py-2 text-center">
+                                <p className="font-mono text-xs text-slate-500 mb-0.5">MÍN</p>
+                                <p className="font-mono text-sm text-green-400 font-600">{fichaDatos.inyeccionReactivaMin || '—'}</p>
+                              </div>
+                              <div className="w-6 h-px bg-slate-600 flex-shrink-0" />
+                              <div className="flex-1 bg-[var(--c-inner)] border border-[var(--c-border-sub)] rounded-lg px-3 py-2 text-center">
+                                <p className="font-mono text-xs text-slate-500 mb-0.5">MÁX</p>
+                                <p className="font-mono text-sm text-red-400 font-600">{fichaDatos.inyeccionReactivaMax || '—'}</p>
+                              </div>
+                            </div>
+                          </div>
+                          <div className="col-span-2">
+                            <span className="font-mono text-xs text-slate-500 uppercase tracking-widest">Absorción reactiva</span>
+                            <div className="flex items-center gap-2 mt-1.5">
+                              <div className="flex-1 bg-[var(--c-inner)] border border-[var(--c-border-sub)] rounded-lg px-3 py-2 text-center">
+                                <p className="font-mono text-xs text-slate-500 mb-0.5">MÍN</p>
+                                <p className="font-mono text-sm text-green-400 font-600">{fichaDatos.absorcionReactivaMin || '—'}</p>
+                              </div>
+                              <div className="w-6 h-px bg-slate-600 flex-shrink-0" />
+                              <div className="flex-1 bg-[var(--c-inner)] border border-[var(--c-border-sub)] rounded-lg px-3 py-2 text-center">
+                                <p className="font-mono text-xs text-slate-500 mb-0.5">MÁX</p>
+                                <p className="font-mono text-sm text-red-400 font-600">{fichaDatos.absorcionReactivaMax || '—'}</p>
+                              </div>
+                            </div>
+                          </div>
+                        </>
                       )}
                     </div>
                   </div>

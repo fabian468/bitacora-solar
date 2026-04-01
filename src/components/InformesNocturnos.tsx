@@ -562,13 +562,87 @@ async function procesarUltimosFG(archivo: File, ultimaFila: number): Promise<voi
   XLSX.writeFile(wbNew, `${archivo.name.replace(/\.[^.]+$/, '')}_ultimos_FG.xlsx`, { cellStyles: true });
 }
 
+// ── PRUEBA con referencias: extrae refs del Excel principal y filtra los otros Excel desde la fila coincidente ──
+
+async function procesarConReferencias(
+  archivoMain: File,
+  archivosOtros: File[],
+  ultimaFila: number,
+): Promise<void> {
+  const XLSX = await import('xlsx-js-style');
+  const filaLimite = Math.max(Number(ultimaFila) || 2975, 1);
+
+  // Paso 1: extraer lastF y lastG por hoja del Excel principal
+  const bufferMain = await archivoMain.arrayBuffer();
+  const wbMain = XLSX.read(new Uint8Array(bufferMain), { type: 'array' });
+  const refs: Record<string, { lastF: unknown; lastG: unknown }> = {};
+
+  for (const sheetName of wbMain.SheetNames) {
+    const ws = wbMain.Sheets[sheetName];
+    const aoa = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' }) as unknown[][];
+    let lastF: unknown = '';
+    let lastG: unknown = '';
+    const limite = Math.min(filaLimite, aoa.length - 1);
+    for (let r = 1; r <= limite; r++) {
+      const row = aoa[r] as unknown[];
+      const fVal = row[5];
+      const gVal = row[6];
+      const fNum = typeof fVal === 'number' ? fVal : parseFloat(String(fVal ?? ''));
+      const gNum = typeof gVal === 'number' ? gVal : parseFloat(String(gVal ?? ''));
+      if (!isNaN(fNum) && fNum > 0) lastF = fVal;
+      if (!isNaN(gNum) && gNum > 0) lastG = gVal;
+    }
+    refs[sheetName] = { lastF, lastG };
+  }
+
+  // Paso 2: para cada Excel adicional, buscar la fila con los refs y extraer hacia abajo
+  for (const archivo of archivosOtros) {
+    const sheetName = archivo.name.replace(/\.[^.]+$/, '');
+    const ref = refs[sheetName];
+    if (!ref) continue;
+
+    const ref1 = String(ref.lastF ?? '').trim();
+    const ref2 = String(ref.lastG ?? '').trim();
+
+    const buffer = await archivo.arrayBuffer();
+    const wb = XLSX.read(new Uint8Array(buffer), { type: 'array' });
+    const wbNew = XLSX.utils.book_new();
+
+    for (const sName of wb.SheetNames) {
+      const ws = wb.Sheets[sName];
+      const aoa = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' }) as unknown[][];
+
+      // Buscar fila donde col A === ref1 y col B === ref2
+      const idx = aoa.findIndex((row) => {
+        const a = String((row as unknown[])[0] ?? '').trim();
+        const b = String((row as unknown[])[1] ?? '').trim();
+        return a === ref1 && b === ref2;
+      });
+
+      // Si no se encontró, empezar desde fila 1 (saltando header)
+      const startIdx = idx !== -1 ? idx : 1;
+      const extracted = aoa.slice(startIdx);
+
+      const wsNew = XLSX.utils.aoa_to_sheet(extracted);
+      aplicarFuente11(wsNew as Record<string, unknown>, XLSX.utils);
+      XLSX.utils.book_append_sheet(wbNew, wsNew, sName);
+    }
+
+    if (wbNew.SheetNames.length > 0) {
+      XLSX.writeFile(wbNew, `${sheetName}.xlsx`, { cellStyles: true });
+    }
+  }
+}
+
 function CardPrueba() {
   const [archivo, setArchivo] = useState<File | null>(null);
+  const [archivosOtros, setArchivosOtros] = useState<File[]>([]);
   const [procesando, setProcesando] = useState(false);
   const [error, setError] = useState('');
   const [ultimaFila, setUltimaFila] = useState(2975);
   const [guardando, setGuardando] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+  const fileOtrosRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     getDoc(doc(db, 'config', 'prueba_fg'))
@@ -588,12 +662,22 @@ function CardPrueba() {
     setArchivo(e.target.files?.[0] ?? null);
   };
 
+  const handleArchivosOtros = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setError('');
+    const files = Array.from(e.target.files ?? []);
+    setArchivosOtros(files);
+  };
+
   const handleDescargar = async () => {
     if (!archivo) return;
     setProcesando(true);
     setError('');
     try {
-      await procesarUltimosFG(archivo, ultimaFila);
+      if (archivosOtros.length > 0) {
+        await procesarConReferencias(archivo, archivosOtros, ultimaFila);
+      } else {
+        await procesarUltimosFG(archivo, ultimaFila);
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Error al procesar.');
     } finally {
@@ -625,13 +709,40 @@ function CardPrueba() {
         {guardando && <Loader2 size={11} className="animate-spin text-slate-500" />}
       </div>
 
-      <label className="flex items-center gap-2 cursor-pointer border border-dashed border-slate-600 rounded-lg px-3 py-2 hover:border-rose-400/50 transition-colors mb-3">
+      {/* Excel principal */}
+      <label className="flex items-center gap-2 cursor-pointer border border-dashed border-slate-600 rounded-lg px-3 py-2 hover:border-rose-400/50 transition-colors mb-2">
         <Upload size={13} className="text-slate-400 flex-shrink-0" />
         <span className="font-mono text-[10px] text-slate-400 truncate">
-          {archivo ? archivo.name : 'Seleccionar Excel (.xlsx)'}
+          {archivo ? archivo.name : 'Excel principal (.xlsx)'}
         </span>
         <input ref={fileRef} type="file" accept=".xlsx" className="hidden" onChange={handleFile} />
       </label>
+
+      {/* Otros Excel (opcionales, nombrados igual que las hojas) */}
+      <label className="flex items-center gap-2 cursor-pointer border border-dashed border-slate-700 rounded-lg px-3 py-2 hover:border-rose-400/30 transition-colors mb-3">
+        <Upload size={13} className="text-slate-500 flex-shrink-0" />
+        <span className="font-mono text-[10px] text-slate-500 truncate">
+          {archivosOtros.length > 0
+            ? `${archivosOtros.length} Excel(s) adicional(es)`
+            : 'Otros Excel por hoja (opcional)'}
+        </span>
+        <input ref={fileOtrosRef} type="file" accept=".xlsx" multiple className="hidden" onChange={handleArchivosOtros} />
+      </label>
+
+      {/* Lista de archivos adicionales con indicador de coincidencia */}
+      {archivosOtros.length > 0 && archivo && (
+        <div className="mb-3 space-y-1">
+          {archivosOtros.map((f) => {
+            const sheetName = f.name.replace(/\.[^.]+$/, '');
+            return (
+              <div key={f.name} className="flex items-center gap-2">
+                <span className="font-mono text-[9px] text-slate-400 truncate flex-1">{f.name}</span>
+                <span className="font-mono text-[9px] text-slate-600">→ hoja &quot;{sheetName}&quot;</span>
+              </div>
+            );
+          })}
+        </div>
+      )}
 
       {archivo && (
         <button
@@ -640,7 +751,11 @@ function CardPrueba() {
           className="w-full flex items-center justify-center gap-2 bg-rose-500/10 border border-rose-500/30 hover:bg-rose-500/20 text-rose-300 rounded-lg px-3 py-2 font-mono text-[10px] transition-colors disabled:opacity-50"
         >
           {procesando ? <Loader2 size={12} className="animate-spin" /> : <Download size={12} />}
-          {procesando ? 'Procesando...' : 'Descargar Excel'}
+          {procesando
+            ? 'Procesando...'
+            : archivosOtros.length > 0
+            ? `Descargar ${archivosOtros.length} Excel(s)`
+            : 'Descargar Excel'}
         </button>
       )}
 

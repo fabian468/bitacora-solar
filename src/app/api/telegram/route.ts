@@ -41,6 +41,8 @@ function construirMensaje(pendientes: RegistroBitacora[]): string {
 
   const carbonFree = pendientes.filter(r => r.cliente === 'Carbon Free');
   const matrix = pendientes.filter(r => r.cliente === 'Matrix');
+  const opde = pendientes.filter(r => r.cliente === 'Opde');
+  const eolicas = pendientes.filter(r => r.cliente === 'Eolicas');
 
   let msg = `☀️ *BITÁCORA SOLAR — PENDIENTES*\n📅 ${ahora}\n`;
   msg += `⚠️ *${pendientes.length} evento${pendientes.length !== 1 ? 's' : ''} pendiente${pendientes.length !== 1 ? 's' : ''}*\n`;
@@ -59,6 +61,26 @@ function construirMensaje(pendientes: RegistroBitacora[]): string {
   if (matrix.length > 0) {
     msg += `\n🔵 *MATRIX* (${matrix.length})\n`;
     matrix.forEach((r, i) => {
+      msg += `\n${i + 1}\\. 🏭 *${r.planta}*\n`;
+      msg += `   📋 ${r.acontecimiento}\n`;
+      msg += `   🔍 ${r.causa}\n`;
+      msg += `   🕐 Desde: ${formatDate(r.fechaInicio)} ${r.horaInicio} \\(${calcDuracion(r)} hace\\)\n`;
+    });
+  }
+
+  if (opde.length > 0) {
+    msg += `\n🟠 *OPDE* (${opde.length})\n`;
+    opde.forEach((r, i) => {
+      msg += `\n${i + 1}\\. 🏭 *${r.planta}*\n`;
+      msg += `   📋 ${r.acontecimiento}\n`;
+      msg += `   🔍 ${r.causa}\n`;
+      msg += `   🕐 Desde: ${formatDate(r.fechaInicio)} ${r.horaInicio} \\(${calcDuracion(r)} hace\\)\n`;
+    });
+  }
+
+  if (eolicas.length > 0) {
+    msg += `\n🟣 *EOLICAS* (${eolicas.length})\n`;
+    eolicas.forEach((r, i) => {
       msg += `\n${i + 1}\\. 🏭 *${r.planta}*\n`;
       msg += `   📋 ${r.acontecimiento}\n`;
       msg += `   🔍 ${r.causa}\n`;

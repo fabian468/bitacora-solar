@@ -35,6 +35,16 @@ const CLIENTE_ESTILOS: Record<Cliente, { activo: string; inactivo: string; dot: 
     inactivo: 'border-[var(--c-border)] text-slate-500 hover:border-cyan-500/30 hover:text-cyan-400',
     dot: 'bg-cyan-400',
   },
+  'Opde': {
+    activo: 'bg-orange-500/20 border-orange-500/50 text-orange-400',
+    inactivo: 'border-[var(--c-border)] text-slate-500 hover:border-orange-500/30 hover:text-orange-400',
+    dot: 'bg-orange-400',
+  },
+  'Eolicas': {
+    activo: 'bg-violet-500/20 border-violet-500/50 text-violet-400',
+    inactivo: 'border-[var(--c-border)] text-slate-500 hover:border-violet-500/30 hover:text-violet-400',
+    dot: 'bg-violet-400',
+  },
 };
 
 export default function EscanearCuaderno({ onClose, onGuardados, plantas }: Props) {

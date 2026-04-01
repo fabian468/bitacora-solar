@@ -1,12 +1,14 @@
 'use client';
 // src/components/CardRegistro.tsx
-import { RegistroBitacora, Planta, CAUSAS_CARBON_FREE, CAUSAS_MATRIX, TIPOS_ACONTECIMIENTO_SELECT } from '@/lib/types';
+import { RegistroBitacora, Planta, CAUSAS_CARBON_FREE, CAUSAS_MATRIX, CAUSAS_OPDE, CAUSAS_EOLICAS, TIPOS_ACONTECIMIENTO_SELECT } from '@/lib/types';
 import { eliminarRegistro, actualizarRegistro } from '@/lib/bitacora';
+import { subirFotoBitacora, eliminarFotoBitacora } from '@/lib/fotos';
 import {
   Sun, Clock, AlertTriangle, FileText, Trash2, CalendarDays,
-  Pencil, X, Check, Loader2, ClipboardCopy, ClipboardCheck, Building2, Copy, UserRound
+  Pencil, X, Check, Loader2, ClipboardCopy, ClipboardCheck, Building2, Copy, UserRound,
+  Image as ImageIcon, Upload, ZoomIn,
 } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 
 interface Props {
   registro: RegistroBitacora;
@@ -14,6 +16,8 @@ interface Props {
   onEliminado: () => void;
   onActualizado: () => void;
   onClonar: (registro: RegistroBitacora) => void;
+  fotosHabilitadas: boolean;
+  esAdmin: boolean;
 }
 
 function calcDuracion(r: RegistroBitacora): string | null {
@@ -45,13 +49,23 @@ function formatDateExcel(fecha: string): string {
   return `${parseInt(m)}/${parseInt(d)}/${y}`;
 }
 
-export default function CardRegistro({ registro, plantas, onEliminado, onActualizado, onClonar }: Props) {
+export default function CardRegistro({ registro, plantas, onEliminado, onActualizado, onClonar, fotosHabilitadas, esAdmin }: Props) {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [eliminando, setEliminando] = useState(false);
   const [editando, setEditando] = useState(false);
   const [guardando, setGuardando] = useState(false);
   const [copiado, setCopiado] = useState(false);
   const [form, setForm] = useState({ ...registro });
+
+  // Fotos
+  const [fotosActuales, setFotosActuales] = useState<string[]>(registro.fotos ?? []);
+  const [nuevasFotos, setNuevasFotos] = useState<File[]>([]);
+  const [fotoAbierta, setFotoAbierta] = useState<string | null>(null);
+  const [subiendoFotos, setSubiendoFotos] = useState(false);
+  const [progreso, setProgreso] = useState(0);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const canUpload = fotosHabilitadas || esAdmin;
 
   const dur = calcDuracion(editando ? form : registro);
 
@@ -175,6 +189,9 @@ export default function CardRegistro({ registro, plantas, onEliminado, onActuali
 
   const handleEdit = () => {
     setForm({ ...registro });
+    setFotosActuales(registro.fotos ?? []);
+    setNuevasFotos([]);
+    setProgreso(0);
     setConfirmDelete(false);
     setEditando(true);
   };
@@ -187,14 +204,40 @@ export default function CardRegistro({ registro, plantas, onEliminado, onActuali
   const handleSave = async () => {
     setGuardando(true);
     try {
+      // Subir nuevas fotos a Cloudinary
+      let urlsNuevas: string[] = [];
+      if (nuevasFotos.length > 0) {
+        setSubiendoFotos(true);
+        let subidas = 0;
+        urlsNuevas = await Promise.all(
+          nuevasFotos.map(f =>
+            subirFotoBitacora(f, pct => {
+              setProgreso(Math.round(((subidas + pct / 100) / nuevasFotos.length) * 100));
+            }).then(url => { subidas++; return url; }),
+          ),
+        );
+        setSubiendoFotos(false);
+      }
+
+      // Eliminar de Cloudinary las fotos removidas
+      const originales = registro.fotos ?? [];
+      const eliminadas = originales.filter(u => !fotosActuales.includes(u));
+      if (eliminadas.length > 0) {
+        await Promise.allSettled(eliminadas.map(eliminarFotoBitacora));
+      }
+
       const { id: _id, createdAt: _c, ...datos } = form;
-      await actualizarRegistro(registro.id!, datos);
+      await actualizarRegistro(registro.id!, {
+        ...datos,
+        fotos: [...fotosActuales, ...urlsNuevas],
+      });
       onActualizado();
       setEditando(false);
     } catch {
       // silencioso
     } finally {
       setGuardando(false);
+      setSubiendoFotos(false);
     }
   };
 
@@ -281,6 +324,18 @@ export default function CardRegistro({ registro, plantas, onEliminado, onActuali
                 <option value="">Selecciona la causa...</option>
                 {CAUSAS_MATRIX.map(c => <option key={c} value={c}>{c}</option>)}
               </select>
+            ) : form.cliente === 'Opde' && form.tipo !== 'oficina' ? (
+              <select value={form.causa} onChange={e => set('causa', e.target.value)}
+                className="input-solar w-full rounded-lg px-2 py-1.5 text-xs mt-1">
+                <option value="">Selecciona la causa...</option>
+                {CAUSAS_OPDE.map(c => <option key={c} value={c}>{c}</option>)}
+              </select>
+            ) : form.cliente === 'Eolicas' && form.tipo !== 'oficina' ? (
+              <select value={form.causa} onChange={e => set('causa', e.target.value)}
+                className="input-solar w-full rounded-lg px-2 py-1.5 text-xs mt-1">
+                <option value="">Selecciona la causa...</option>
+                {CAUSAS_EOLICAS.map(c => <option key={c} value={c}>{c}</option>)}
+              </select>
             ) : (
               <textarea rows={2} value={form.causa}
                 onChange={e => set('causa', e.target.value)}
@@ -293,6 +348,92 @@ export default function CardRegistro({ registro, plantas, onEliminado, onActuali
             <textarea rows={3} value={form.detalle}
               onChange={e => set('detalle', e.target.value)}
               className="input-solar w-full rounded-lg px-2 py-1.5 text-xs mt-1 resize-none" />
+          </div>
+
+          {/* ── Fotos (modo edición) ── */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-mono text-slate-500 uppercase tracking-wide flex items-center gap-1.5">
+                <ImageIcon size={12} /> Fotos {fotosActuales.length + nuevasFotos.length > 0 && `(${fotosActuales.length + nuevasFotos.length})`}
+              </label>
+              {canUpload && (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="flex items-center gap-1 text-xs font-mono text-amber-400 hover:text-amber-300 transition-colors"
+                  >
+                    <Upload size={11} /> Agregar
+                  </button>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    className="hidden"
+                    onChange={e => {
+                      const files = Array.from(e.target.files ?? []);
+                      if (files.length) setNuevasFotos(p => [...p, ...files]);
+                      e.target.value = '';
+                    }}
+                  />
+                </>
+              )}
+            </div>
+
+            {/* Grid fotos existentes */}
+            {fotosActuales.length > 0 && (
+              <div className="grid grid-cols-3 gap-1.5">
+                {fotosActuales.map((url, i) => (
+                  <div key={i} className="relative group">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={url} alt="" className="w-full h-16 object-cover rounded-lg" />
+                    <button
+                      type="button"
+                      onClick={() => setFotosActuales(p => p.filter((_, j) => j !== i))}
+                      className="absolute top-0.5 right-0.5 bg-black/70 text-white rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
+                    >
+                      <X size={10} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Grid nuevas fotos (preview local) */}
+            {nuevasFotos.length > 0 && (
+              <div className="grid grid-cols-3 gap-1.5">
+                {nuevasFotos.map((file, i) => (
+                  <NuevaFotoPreview
+                    key={i}
+                    file={file}
+                    onRemove={() => setNuevasFotos(p => p.filter((_, j) => j !== i))}
+                  />
+                ))}
+              </div>
+            )}
+
+            {/* Aviso bloqueado */}
+            {!canUpload && fotosActuales.length === 0 && (
+              <p className="font-mono text-xs text-slate-600 flex items-center gap-1.5">
+                <ImageIcon size={11} /> Sin fotos adjuntas
+              </p>
+            )}
+            {!canUpload && (
+              <p className="font-mono text-xs text-slate-600 bg-slate-800/50 border border-slate-700/50 rounded-lg px-2 py-1.5">
+                📷 Subida de fotos bloqueada por el administrador
+              </p>
+            )}
+
+            {/* Progreso subida */}
+            {subiendoFotos && (
+              <div className="space-y-1">
+                <div className="h-1 bg-[var(--c-bg)] rounded-full overflow-hidden">
+                  <div className="h-full bg-amber-500 rounded-full transition-all" style={{ width: `${progreso}%` }} />
+                </div>
+                <p className="font-mono text-xs text-amber-400">Subiendo fotos... {progreso}%</p>
+              </div>
+            )}
           </div>
 
           <div className="grid grid-cols-2 gap-2">
@@ -354,6 +495,7 @@ export default function CardRegistro({ registro, plantas, onEliminado, onActuali
 
   // ── MODO VISTA ──
   return (
+    <>
     <div className={`card-registro rounded-2xl p-5 animate-fade-up ${esOficina ? 'border-violet-500/30' : ''}`}>
       <div className="flex items-start justify-between gap-3 mb-4">
         <div className="flex items-center gap-2">
@@ -447,6 +589,33 @@ export default function CardRegistro({ registro, plantas, onEliminado, onActuali
         </div>
       )}
 
+      {/* ── Galería fotos (modo vista) ── */}
+      {registro.fotos && registro.fotos.length > 0 && (
+        <div className="mb-3">
+          <div className="flex items-center gap-1.5 mb-2">
+            <ImageIcon size={11} className="text-slate-500" />
+            <span className="font-mono text-xs text-slate-500 uppercase tracking-widest">
+              Fotos ({registro.fotos.length})
+            </span>
+          </div>
+          <div className="grid grid-cols-3 gap-1.5">
+            {registro.fotos.map((url, i) => (
+              <button
+                key={i}
+                onClick={() => setFotoAbierta(url)}
+                className="relative group overflow-hidden rounded-lg"
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={url} alt="" className="w-full h-16 object-cover transition-transform group-hover:scale-105" />
+                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors flex items-center justify-center">
+                  <ZoomIn size={16} className="text-white opacity-0 group-hover:opacity-100 transition-opacity" />
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div className="flex items-center gap-4 pt-3 border-t border-[var(--c-border-sub)]">
         <div className="flex items-center gap-1.5">
           <Clock size={11} className="text-slate-600" />
@@ -483,6 +652,79 @@ export default function CardRegistro({ registro, plantas, onEliminado, onActuali
           </span>
         </div>
       )}
+    </div>
+
+    {/* ── Lightbox ── */}
+    {fotoAbierta && (
+      <div
+        className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-sm p-4"
+        onClick={() => setFotoAbierta(null)}
+      >
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={fotoAbierta}
+          alt=""
+          className="max-w-full max-h-full rounded-xl shadow-2xl object-contain"
+          style={{ maxHeight: '90vh' }}
+          onClick={e => e.stopPropagation()}
+        />
+        <button
+          onClick={() => setFotoAbierta(null)}
+          className="absolute top-4 right-4 bg-black/50 hover:bg-black/80 text-white rounded-full p-2 transition-colors"
+        >
+          <X size={20} />
+        </button>
+        {/* Navegación entre fotos */}
+        {registro.fotos && registro.fotos.length > 1 && (() => {
+          const idx = registro.fotos!.indexOf(fotoAbierta);
+          return (
+            <>
+              {idx > 0 && (
+                <button
+                  onClick={e => { e.stopPropagation(); setFotoAbierta(registro.fotos![idx - 1]); }}
+                  className="absolute left-4 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/80 text-white rounded-full p-2 transition-colors font-mono text-lg"
+                >‹</button>
+              )}
+              {idx < registro.fotos!.length - 1 && (
+                <button
+                  onClick={e => { e.stopPropagation(); setFotoAbierta(registro.fotos![idx + 1]); }}
+                  className="absolute right-16 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/80 text-white rounded-full p-2 transition-colors font-mono text-lg"
+                >›</button>
+              )}
+              <span className="absolute bottom-4 left-1/2 -translate-x-1/2 font-mono text-xs text-white/60">
+                {idx + 1} / {registro.fotos!.length}
+              </span>
+            </>
+          );
+        })()}
+      </div>
+    )}
+    </>
+  );
+}
+
+// ── Preview local para fotos nuevas ───────────────────────────────────────────
+function NuevaFotoPreview({ file, onRemove }: { file: File; onRemove: () => void }) {
+  const [src, setSrc] = useState('');
+  useEffect(() => {
+    const url = URL.createObjectURL(file);
+    setSrc(url);
+    return () => URL.revokeObjectURL(url);
+  }, [file]);
+  return (
+    <div className="relative group">
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src={src} alt={file.name} className="w-full h-16 object-cover rounded-lg opacity-70 border border-amber-500/30" />
+      <div className="absolute inset-0 flex items-center justify-center">
+        <span className="font-mono text-xs text-amber-400 bg-black/60 rounded px-1">nueva</span>
+      </div>
+      <button
+        type="button"
+        onClick={onRemove}
+        className="absolute top-0.5 right-0.5 bg-black/70 text-white rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
+      >
+        <X size={10} />
+      </button>
     </div>
   );
 }
