@@ -281,6 +281,36 @@ async function descargarIrradianciaLDN(rows: string[][], headers: string[], arch
   XLSX.writeFile(wb, `${archivo.name.replace(/\.[^.]+$/, '')}_irradiancia_ldnorte.xlsx`, { cellStyles: true });
 }
 
+// ── Lógica Meter Luz del Norte (0 decimales, igual a LDP1) ──
+
+async function descargarMeterLuzDelNorte(rows: string[][], headers: string[], archivo: File, ref1: string, ref2: string) {
+  const XLSX = await import('xlsx-js-style');
+  const filtradas = filtrarPorReferencia(rows, ref1, ref2, 96);
+  if (!filtradas) throw new Error(`No se encontró fila con valores ${ref1} y ${ref2}.`);
+
+  const dataFormateada = filtradas.map(row =>
+    row.slice(0, 8).map((cell, i) => {
+      if (i === 0) return reformatearFecha(cell);
+      return parseFloat(cell) || 0;
+    })
+  );
+
+  const ws = XLSX.utils.aoa_to_sheet([headers.slice(0, 8), ...dataFormateada]);
+
+  const range = XLSX.utils.decode_range(ws['!ref'] || 'A1');
+  for (let R = 1; R <= range.e.r; R++) {
+    for (let C = 1; C <= 7; C++) {
+      const cellAddr = XLSX.utils.encode_cell({ r: R, c: C });
+      if (ws[cellAddr]) { ws[cellAddr].t = 'n'; ws[cellAddr].z = '#,##0;-#,##0'; }
+    }
+  }
+
+  aplicarFuente11(ws as Record<string, unknown>, XLSX.utils);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Registros');
+  XLSX.writeFile(wb, `${archivo.name.replace(/\.[^.]+$/, '')}_meter_luz_del_norte.xlsx`, { cellStyles: true });
+}
+
 // ── Lógica CEN Luz del Norte (columna D para energía) ──
 
 async function descargarCENLuzDelNorte(rows: string[][], headers: string[], archivo: File, ref1: string, ref2: string) {
@@ -1203,7 +1233,7 @@ export default function InformesNocturnos() {
             labelBtn="Descargar Excel con Energía Real Meter"
             labelBtn2="Energía Real para el CEN"
             parser={parseMeter}
-            onDescargar={descargarMeterHanqwa}
+            onDescargar={descargarMeterLuzDelNorte}
             onDescargar2={descargarCENLuzDelNorte}
           />
           <CardInforme
