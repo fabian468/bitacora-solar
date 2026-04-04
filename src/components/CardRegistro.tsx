@@ -18,6 +18,7 @@ interface Props {
   onClonar: (registro: RegistroBitacora) => void;
   fotosHabilitadas: boolean;
   esAdmin: boolean;
+  soloLectura?: boolean;
 }
 
 function calcDuracion(r: RegistroBitacora): string | null {
@@ -49,7 +50,7 @@ function formatDateExcel(fecha: string): string {
   return `${parseInt(m)}/${parseInt(d)}/${y}`;
 }
 
-export default function CardRegistro({ registro, plantas, onEliminado, onActualizado, onClonar, fotosHabilitadas, esAdmin }: Props) {
+export default function CardRegistro({ registro, plantas, onEliminado, onActualizado, onClonar, fotosHabilitadas, esAdmin, soloLectura = false }: Props) {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [eliminando, setEliminando] = useState(false);
   const [editando, setEditando] = useState(false);
@@ -65,7 +66,7 @@ export default function CardRegistro({ registro, plantas, onEliminado, onActuali
   const [progreso, setProgreso] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const canUpload = fotosHabilitadas || esAdmin;
+  const canUpload = !soloLectura && (fotosHabilitadas || esAdmin);
 
   const dur = calcDuracion(editando ? form : registro);
 
@@ -537,25 +538,29 @@ export default function CardRegistro({ registro, plantas, onEliminado, onActuali
             {copiado && <span className="font-mono">¡Copiado!</span>}
           </button>
 
-          <button onClick={() => onClonar(registro)} title="Clonar registro"
-            className="p-1.5 rounded-lg text-slate-600 hover:text-violet-400 hover:bg-violet-400/10 transition-all">
-            <Copy size={13} />
-          </button>
+          {!soloLectura && (
+            <>
+              <button onClick={() => onClonar(registro)} title="Clonar registro"
+                className="p-1.5 rounded-lg text-slate-600 hover:text-violet-400 hover:bg-violet-400/10 transition-all">
+                <Copy size={13} />
+              </button>
 
-          <button onClick={handleEdit} title="Editar"
-            className="p-1.5 rounded-lg text-slate-600 hover:text-cyan-400 hover:bg-cyan-400/10 transition-all">
-            <Pencil size={13} />
-          </button>
+              <button onClick={handleEdit} title="Editar"
+                className="p-1.5 rounded-lg text-slate-600 hover:text-cyan-400 hover:bg-cyan-400/10 transition-all">
+                <Pencil size={13} />
+              </button>
 
-          <button onClick={handleDelete} disabled={eliminando}
-            className={`p-1.5 rounded-lg transition-all text-xs flex items-center gap-1 ${
-              confirmDelete
-                ? 'bg-red-500/20 border border-red-500/40 text-red-400'
-                : 'text-slate-600 hover:text-red-400 hover:bg-red-400/10'
-            }`}>
-            <Trash2 size={13} />
-            {confirmDelete && <span className="font-mono">¿Confirmar?</span>}
-          </button>
+              <button onClick={handleDelete} disabled={eliminando}
+                className={`p-1.5 rounded-lg transition-all text-xs flex items-center gap-1 ${
+                  confirmDelete
+                    ? 'bg-red-500/20 border border-red-500/40 text-red-400'
+                    : 'text-slate-600 hover:text-red-400 hover:bg-red-400/10'
+                }`}>
+                <Trash2 size={13} />
+                {confirmDelete && <span className="font-mono">¿Confirmar?</span>}
+              </button>
+            </>
+          )}
         </div>
       </div>
 

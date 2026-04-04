@@ -156,6 +156,7 @@ export default function Home() {
   const contPorCliente = (c: Cliente) => registros.filter(r => r.cliente === c).length;
 
   const esAdmin = usuario?.rol === 'admin';
+  const esInvitado = usuario?.rol === 'invitado';
 
   // ── PANTALLAS DE CARGA Y LOGIN ──
   if (cargandoAuth) {
@@ -248,6 +249,11 @@ export default function Home() {
                 <span className="font-mono text-xs text-slate-400 truncate max-w-24">
                   {usuario.nombre}
                 </span>
+                {esInvitado && (
+                  <span className="font-mono text-xs text-slate-500 bg-slate-500/10 border border-slate-500/20 rounded px-1.5 py-0.5 leading-none">
+                    solo lectura
+                  </span>
+                )}
               </div>
 
               <button
@@ -268,7 +274,7 @@ export default function Home() {
                 {temaOscuro ? <Moon size={15} /> : <Sun size={15} />}
               </button>
 
-              {vista === 'bitacora' && (
+              {vista === 'bitacora' && !esInvitado && (
                 <>
                   <button
                     onClick={() => setMostrarEscanear(true)}
@@ -484,7 +490,7 @@ export default function Home() {
                       : 'Crea el primer registro del día'}
                   </p>
                 </div>
-                {!busqueda && clienteFiltro === 'todos' && (
+                {!busqueda && clienteFiltro === 'todos' && !esInvitado && (
                   <button
                     onClick={() => setMostrarForm(true)}
                     className="btn-primary px-6 py-2.5 rounded-xl text-sm flex items-center gap-2 mt-2"
@@ -519,6 +525,7 @@ export default function Home() {
                         onClonar={reg => { setRegistroAclonar(reg); setMostrarForm(true); }}
                         fotosHabilitadas={fotosHabilitadas}
                         esAdmin={esAdmin}
+                        soloLectura={esInvitado}
                       />
                     </div>
                   ))}

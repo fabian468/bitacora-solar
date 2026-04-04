@@ -23,6 +23,11 @@ const ROL_ESTILOS: Record<RolUsuario, { bg: string; border: string; text: string
     border: 'border-slate-500/30',
     text: 'text-slate-400',
   },
+  invitado: {
+    bg: 'bg-slate-500/10',
+    border: 'border-slate-500/20',
+    text: 'text-slate-500',
+  },
 };
 
 export default function GestionUsuarios() {

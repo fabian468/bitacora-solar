@@ -2,7 +2,7 @@
 
 export type Cliente = 'Carbon Free' | 'Matrix' | 'Opde' | 'Eolicas';
 
-export type RolUsuario = 'admin' | 'operador';
+export type RolUsuario = 'admin' | 'operador' | 'invitado';
 
 export interface Usuario {
   uid: string;

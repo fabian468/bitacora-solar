@@ -4,10 +4,12 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
-import { Sun, LogIn, User, Lock, AlertCircle, Settings } from 'lucide-react';
+import { useAuth } from '@/context/AuthContext';
+import { Sun, LogIn, User, Lock, AlertCircle, Settings, Eye } from 'lucide-react';
 
 export default function Login() {
   const router = useRouter();
+  const { entrarComoInvitado } = useAuth();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [cargando, setCargando] = useState(false);
@@ -104,6 +106,21 @@ export default function Login() {
                 <LogIn size={15} />
               )}
               {cargando ? 'INGRESANDO...' : 'INGRESAR'}
+            </button>
+
+            <div className="relative flex items-center gap-2 my-1">
+              <div className="flex-1 h-px bg-[var(--c-border-sub)]" />
+              <span className="font-mono text-xs text-slate-600">o</span>
+              <div className="flex-1 h-px bg-[var(--c-border-sub)]" />
+            </div>
+
+            <button
+              type="button"
+              onClick={entrarComoInvitado}
+              className="w-full py-2.5 rounded-xl flex items-center justify-center gap-2 text-sm font-display font-600 tracking-wider border border-[var(--c-border-sub)] text-slate-400 hover:border-amber-500/30 hover:text-amber-400 transition-all"
+            >
+              <Eye size={15} />
+              MODO INVITADO
             </button>
           </form>
         </div>
