@@ -467,12 +467,12 @@ function VerModal({ proc, soloLectura, onClose, onEditar }: {
 
                   {/* Imágenes del paso */}
                   {(paso.imagenes ?? []).length > 0 && (
-                    <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 pl-10">
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                       {paso.imagenes!.map((url, j) => (
                         <button key={j} onClick={() => setImgAmpliada(url)} className="group block">
                           {/* eslint-disable-next-line @next/next/no-img-element */}
                           <img src={url} alt={`Paso ${i + 1} img ${j + 1}`}
-                            className="w-full h-20 object-cover rounded-lg border border-[var(--c-border-sub)] group-hover:border-amber-500/40 transition-all" />
+                            className="w-full h-44 object-cover rounded-lg border border-[var(--c-border-sub)] group-hover:border-amber-500/40 transition-all" />
                         </button>
                       ))}
                     </div>

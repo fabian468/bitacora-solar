@@ -769,6 +769,9 @@ video {
 .h-px{
   height: 1px;
 }
+.h-44{
+  height: 11rem;
+}
 .max-h-40{
   max-height: 10rem;
 }
@@ -2544,6 +2547,10 @@ select option {
 
   .sm\:grid-cols-5{
     grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+
+  .sm\:grid-cols-3{
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
   .sm\:gap-3{
